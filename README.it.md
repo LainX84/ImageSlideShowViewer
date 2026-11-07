@@ -124,7 +124,8 @@ Le opzioni sono nella seconda barra: **Intervallo**, **Casuale**, **Ripeti**, **
 - Se non selezioni niente e la cartella corrente contiene solo sottocartelle, lo slideshow le percorre tutte.
 - Con **più immagini selezionate**, lo slideshow mostra solo quelle; con **una sola immagine selezionata**, parte da quella.
 - Con **Includi sottocartelle**, lo slideshow percorre la cartella e tutte le sottocartelle, una dopo l'altra. Se è attivo anche *Casuale*, mescola sia l'ordine delle cartelle sia le foto dentro ogni cartella. I tasti ↓/↑ restano dentro l'albero di partenza.
-- Senza sottocartelle, lo slideshow ripete la cartella corrente (se è attivo *Ripeti*). Con ↓/↑ passi alla cartella vicina sul disco che contiene immagini, e lo slideshow continua da lì. Il salto si ferma alla cartella di primo livello del disco (per esempio `D:\Foto`) o alla cartella Immagini.
+- Senza sottocartelle, lo slideshow ripete la cartella corrente (se è attivo *Ripeti*). Con ↓/↑ passi alla cartella vicina sul disco che contiene immagini, e lo slideshow continua da lì. Il salto resta dentro la cartella di primo livello del disco (per esempio `D:\Foto`) o la cartella Immagini.
+- Il salto cartella con ↓/↑ **gira in tondo**: dalla prima cartella ↑ porta all'ultima, e dall'ultima ↓ torna alla prima, quindi puoi continuare a ciclare A → B → … → H → A oppure H → G → … → A → H. Funziona anche con *Ripeti* spento, che decide solo se lo slideshow automatico si ferma alla fine.
 
 | Tasto | Azione |
 |---|---|

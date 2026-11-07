@@ -123,7 +123,8 @@ The options are on the second toolbar: **Interval**, **Random**, **Loop**, **Inc
 - If nothing is selected and the current folder contains only subfolders, the slideshow plays all of them.
 - With **several images selected**, only those are shown; with **one image selected**, it starts from that one.
 - With **Include subfolders**, the slideshow walks the folder and all its subfolders, one after another. With *Random* too, both the folder order and the photos inside each folder are shuffled. ↓/↑ stay inside the starting tree.
-- Without subfolders, the slideshow repeats the current folder (if *Loop* is on). ↓/↑ move to the nearest folder on disk that contains images, and the slideshow continues from there. The jump stops at the top-level folder of the drive (for example `D:\Photos`) or at the Pictures folder.
+- Without subfolders, the slideshow repeats the current folder (if *Loop* is on). ↓/↑ move to the nearest folder on disk that contains images, and the slideshow continues from there. The jump stays inside the top-level folder of the drive (for example `D:\Photos`) or the Pictures folder.
+- The folder jump with ↓/↑ **wraps around**: from the first folder ↑ goes to the last one, and from the last one ↓ goes back to the first, so you can keep cycling A → B → … → H → A or H → G → … → A → H. This also works with *Loop* off, which only decides whether the automatic slideshow stops at the end.
 
 | Key | Action |
 |---|---|

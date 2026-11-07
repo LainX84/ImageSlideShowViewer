@@ -3,8 +3,7 @@ import random
 
 from .archive import parent_of
 from .utils import (browse_boundary, collect_image_folders, find_folder_with_images,
-                    list_images,
-                    samepath)
+                    has_images, list_images, list_subdirs, samepath)
 
 
 class Navigator:
@@ -122,9 +121,11 @@ class Navigator:
         return False
 
     def jump_folder(self, d):
-        """Salta alla prima immagine della cartella successiva/precedente."""
+        """Salta alla prima immagine della cartella successiva/precedente.
+        Il salto con ↓/↑ gira sempre in tondo: dalla prima cartella si passa all'ultima
+        e viceversa (anche senza "Ripeti", che vale per lo scorrimento automatico)."""
         self.folder_changed = False
-        return self._move_folder(d, land_end=False)
+        return self._move_folder(d, land_end=False, wrap=True)
 
     def first(self):
         if self.images:
@@ -134,7 +135,7 @@ class Navigator:
         if self.images:
             self.ii = len(self.images) - 1
 
-    def _move_folder(self, d, land_end):
+    def _move_folder(self, d, land_end, wrap=False):
         """
         Passa alla cartella successiva/precedente dell'elenco, partendo SEMPRE dalla
         cartella attualmente mostrata. Oltre la fine dell'elenco:
@@ -146,6 +147,7 @@ class Navigator:
             # Slideshow di immagini selezionate: da qui in poi si va per cartelle.
             self.folders, self.fi, self.custom = [self.folder], 0, False
             self.expandable = True
+        loop = self.loop or wrap
         nf = len(self.folders)
         fi = self.fi
         for _ in range(max(nf, 1)):
@@ -159,9 +161,11 @@ class Navigator:
             if self.expandable:
                 if self._extend(d, land_end):
                     return True
-                if not self.loop:
+                if not loop:
                     return False
-            if self.loop and (len(self.folders) > 1 or self.expandable):
+                # in fondo (o in cima) all'albero: si riparte dall'altro capo
+                return self._wrap(d, land_end)
+            if loop and len(self.folders) > 1:
                 fi %= len(self.folders)
                 imgs = self._load(self.folders[fi])
                 if imgs:
@@ -169,6 +173,34 @@ class Navigator:
                 continue
             return False
         return False
+
+    def _wrap(self, d, land_end):
+        """Elenco "aperto" arrivato al limite (es. D:\\Foto): va all'ultima cartella con
+        immagini dell'albero andando indietro, alla prima andando avanti."""
+        b = self.boundary
+        if not b:
+            return False
+        if d > 0:
+            target = b if has_images(b) else find_folder_with_images(b, True, b)
+        else:
+            node = b
+            while True:
+                subs = list_subdirs(node)
+                if not subs:
+                    break
+                node = subs[-1]
+            if samepath(node, b):
+                target = b if has_images(b) else None
+            else:
+                target = node if has_images(node) else find_folder_with_images(node, False, b)
+        if not target or samepath(target, self.folders[self.fi]):
+            return False
+        imgs = self._load(target)
+        if not imgs:
+            return False
+        # si ricomincia un elenco nuovo dall'altro capo: da lì ↑/↓ proseguono normalmente
+        self.folders = [target]
+        return self._enter(0, imgs, land_end)
 
     def _extend(self, d, land_end):
         if self.shuffle and len(self.folders) > 1:
