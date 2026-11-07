@@ -232,12 +232,19 @@ class BrowserWindow(QMainWindow):
         self.ck_pair = QCheckBox(tr("2 affiancate"))
         self.ck_pair.setToolTip(tr("Mostra due immagini alla volta, una accanto all'altra: "
                                    "1-2, poi 3-4, 5-6… (nello slideshow anche con il tasto D)"))
+        self.ck_manga = QCheckBox(tr("Manga"))
+        self.ck_manga.setToolTip(tr("Con 2 affiancate: lettura da destra a sinistra, la 1 a destra e la 2 "
+                                    "a sinistra, poi 3 a destra e 4 a sinistra… "
+                                    "(nello slideshow anche con il tasto M)"))
         for ck, key, default in ((self.ck_random, "random", False), (self.ck_loop, "loop", True),
-                                 (self.ck_sub, "subfolders", False), (self.ck_pair, "pair", False)):
+                                 (self.ck_sub, "subfolders", False), (self.ck_pair, "pair", False),
+                                 (self.ck_manga, "manga", False)):
             ck.setChecked(s.value(f"slideshow/{key}", default, type=bool))
             ck.toggled.connect(lambda v, k=key: s.setValue(f"slideshow/{k}", v))
             st.addWidget(QLabel(" "))
             st.addWidget(ck)
+        self.ck_manga.setEnabled(self.ck_pair.isChecked())
+        self.ck_pair.toggled.connect(self.ck_manga.setEnabled)
         st.addSeparator()
         st.addWidget(QLabel(" " + tr("Ordina per") + " "))
         self.cb_sort = QComboBox()

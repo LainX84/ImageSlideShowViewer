@@ -32,6 +32,7 @@ class Canvas(QWidget):
         self.setMouseTracking(True)
         self.image = None
         self.image2 = None      # seconda immagine affiancata (modalità "2 affiancate")
+        self.rtl = False        # modalità manga: la prima immagine della coppia a destra
         self._scaled = None
         self._scaled2 = None
         self._full = None
@@ -204,12 +205,15 @@ class Canvas(QWidget):
         if self.image is not None and not self.image.isNull():
             if self.image2 is not None and self._scaled is not None and self._scaled2 is not None:
                 # le due immagini si toccano al centro, come le pagine di un libro aperto
-                d1, d2 = self._scaled.devicePixelRatio(), self._scaled2.devicePixelRatio()
-                w1, h1 = self._scaled.width() / d1, self._scaled.height() / d1
-                h2 = self._scaled2.height() / d2
+                # in modalità manga si legge da destra: la prima a destra, la seconda a sinistra
+                left, right = ((self._scaled2, self._scaled) if self.rtl
+                               else (self._scaled, self._scaled2))
+                dl, dr = left.devicePixelRatio(), right.devicePixelRatio()
+                wl, hl = left.width() / dl, left.height() / dl
+                hr = right.height() / dr
                 mid = W / 2
-                p.drawPixmap(QPointF(mid - self.GAP / 2 - w1, (H - h1) / 2), self._scaled)
-                p.drawPixmap(QPointF(mid + self.GAP / 2, (H - h2) / 2), self._scaled2)
+                p.drawPixmap(QPointF(mid - self.GAP / 2 - wl, (H - hl) / 2), left)
+                p.drawPixmap(QPointF(mid + self.GAP / 2, (H - hr) / 2), right)
             elif self.zoom is None and self._scaled is not None:
                 dpr = self._scaled.devicePixelRatio()
                 w, h = self._scaled.width() / dpr, self._scaled.height() / dpr
@@ -341,8 +345,11 @@ class ViewerWindow(QWidget):
         self.interval = float(settings.value("slideshow/interval", 4.0, type=float))
         # due immagini affiancate (1-2, 3-4, …): opzione dello slideshow, attivabile anche con D
         self.pair = slideshow and settings.value("slideshow/pair", False, type=bool)
+        # modalità manga (solo con 2 affiancate): 1 a destra e 2 a sinistra
+        self.manga = settings.value("slideshow/manga", False, type=bool)
         self._shown2 = None
         self.canvas = Canvas(self)
+        self.canvas.rtl = self.manga
         self.canvas.show_info = settings.value("viewer/show_info", False, type=bool)
         lay = QVBoxLayout(self)
         lay.setContentsMargins(0, 0, 0, 0)
@@ -478,6 +485,18 @@ class ViewerWindow(QWidget):
         self.settings.setValue("slideshow/pair", self.pair)
         self.canvas.flash(tr("Due immagini affiancate") if self.pair else tr("Un'immagine alla volta"))
         self._show_current()
+
+    def toggle_manga(self):
+        self.manga = not self.manga
+        self.settings.setValue("slideshow/manga", self.manga)
+        self.canvas.rtl = self.manga
+        if self.pair:
+            self.canvas.flash(tr("Modalità manga: da destra a sinistra") if self.manga
+                              else tr("Da sinistra a destra"))
+        else:
+            self.canvas.flash(tr("Modalità manga attivata (vale con 2 affiancate, tasto D)") if self.manga
+                              else tr("Modalità manga disattivata"))
+        self.canvas.update()
 
     def _on_frame(self, _n):
         if self.movie is not None:
@@ -768,6 +787,8 @@ class ViewerWindow(QWidget):
             self._show_current()
         elif k == K.Key_D:
             self.toggle_pair()
+        elif k == K.Key_M:
+            self.toggle_manga()
         elif k in (K.Key_Space, K.Key_P, K.Key_MediaTogglePlayPause, K.Key_MediaPlay):
             self.toggle_play()
         elif k in (K.Key_S, K.Key_MediaStop, K.Key_MediaPause):
@@ -852,6 +873,11 @@ class ViewerWindow(QWidget):
         a2.setCheckable(True)
         a2.setChecked(self.pair)
         a2.toggled.connect(lambda _v: self.toggle_pair())
+        am = m.addAction(tr("Modalità manga, da destra a sinistra  (M)"))
+        am.setCheckable(True)
+        am.setChecked(self.manga)
+        am.setEnabled(self.pair)
+        am.toggled.connect(lambda _v: self.toggle_manga())
         m.addAction(tr("Adatta / 100%  (Z)"), self.toggle_zoom)
         m.addAction(tr("Schermo intero  (F)"), self.toggle_fullscreen)
         m.addAction(tr("Mostra informazioni  (I)"), self.toggle_info)

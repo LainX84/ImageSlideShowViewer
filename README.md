@@ -115,7 +115,7 @@ From then on, double-clicking a photo opens the viewer, and **Enter** takes you 
 
 ## Slideshow
 
-The options are on the second toolbar: **Interval**, **Random**, **Loop**, **Include subfolders** and **2 side by side**.
+The options are on the second toolbar: **Interval**, **Random**, **Loop**, **Include subfolders**, **2 side by side** and **Manga**.
 
 - With **one folder selected**, the slideshow starts from it and continues with the other folders in the view.
 - With **several folders selected** (Ctrl+click or Shift+click), the slideshow shows only those, one after another.
@@ -144,6 +144,7 @@ The options are on the second toolbar: **Interval**, **Random**, **Loop**, **Inc
 | Ctrl+C | Copy the image to the clipboard |
 | Enter | Back to the browser on this image |
 | D | Two images side by side on/off |
+| M | Manga mode (with 2 side by side) on/off |
 | Esc | Close |
 
 Moving the mouse shows a **control bar** at the bottom with *Start/Stop*, previous/next image and folder, interval and *Options*. While the slideshow is stopped, a "Paused" badge stays in the top right corner. Right-clicking the image opens a menu with all the commands, plus copy image, copy file, open with, rename, set as wallpaper, print, show in Explorer, copy as path and properties.
@@ -151,6 +152,8 @@ Moving the mouse shows a **control bar** at the bottom with *Start/Stop*, previo
 ### Two images side by side
 
 With **2 side by side** ticked (or the **D** key during the slideshow) two images are shown at a time, next to each other like the pages of an open book: 1-2, then 3-4, 5-6 and so on. If a folder has an odd number of images, the last one is shown alone; then the slideshow moves on to the next folder as usual. ←/→ move by one pair, ↓/↑ still jump between folders, and zoom is not available in this mode.
+
+**Manga mode.** With **Manga** ticked (next to *2 side by side*, or the **M** key during the slideshow) each pair reads right to left like a Japanese comic: image 1 on the right and 2 on the left, then 3 on the right and 4 on the left, and so on. The arrow keys work as usual: **→** goes forward and **←** goes back.
 
 ### Side-by-side slideshow of 2 folders
 

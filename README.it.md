@@ -116,7 +116,7 @@ Da quel momento, con un doppio clic su una foto si apre il visualizzatore. **Inv
 
 ## Slideshow
 
-Le opzioni sono nella seconda barra: **Intervallo**, **Casuale**, **Ripeti**, **Includi sottocartelle** e **2 affiancate**.
+Le opzioni sono nella seconda barra: **Intervallo**, **Casuale**, **Ripeti**, **Includi sottocartelle**, **2 affiancate** e **Manga**.
 
 - Con **una cartella selezionata**, lo slideshow parte da quella e prosegue con tutte le altre cartelle della vista.
 - Con **più cartelle selezionate** (Ctrl+clic o Maiusc+clic), lo slideshow mostra solo quelle, una dopo l'altra.
@@ -145,6 +145,7 @@ Le opzioni sono nella seconda barra: **Intervallo**, **Casuale**, **Ripeti**, **
 | Ctrl+C | Copia l'immagine negli appunti |
 | Invio | Torna al browser su questa immagine |
 | D | Due immagini affiancate sì/no |
+| M | Modalità manga (con 2 affiancate) sì/no |
 | Esc | Chiudi |
 
 Muovendo il mouse compare in basso una **barra dei comandi** con *Avvia/Ferma*, immagine e cartella precedente/successiva, intervallo e *Opzioni*. Mentre lo slideshow è fermo, in alto a destra resta visibile l'indicatore "In pausa". Il tasto destro sull'immagine apre un menu con tutti i comandi, più copia immagine, copia file, apri con, rinomina, imposta come sfondo, stampa, mostra in Esplora risorse, copia percorso e proprietà.
@@ -152,6 +153,8 @@ Muovendo il mouse compare in basso una **barra dei comandi** con *Avvia/Ferma*, 
 ### Due immagini affiancate
 
 Con **2 affiancate** spuntato (o il tasto **D** durante lo slideshow) si vedono due immagini alla volta, una accanto all'altra come le pagine di un libro aperto: 1-2, poi 3-4, 5-6 e così via. Se la cartella ha un numero dispari di immagini l'ultima resta da sola; poi lo slideshow passa alla cartella successiva come sempre. ←/→ vanno avanti e indietro di una coppia, ↓/↑ saltano ancora da una cartella all'altra, lo zoom in questa modalità non è disponibile.
+
+**Modalità manga.** Con **Manga** spuntato (accanto a *2 affiancate*, o il tasto **M** durante lo slideshow) la coppia si legge da destra a sinistra come un fumetto giapponese: la 1 a destra e la 2 a sinistra, poi la 3 a destra e la 4 a sinistra, e così via. Le frecce restano quelle di sempre: **→** va avanti e **←** torna indietro.
 
 ### Slideshow di 2 cartelle affiancate
 
