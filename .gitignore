@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+build/
+dist/
+*.spec
+image-slideshow-viewer-error.log
+fotovista-errore.log
