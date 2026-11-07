@@ -106,6 +106,20 @@ class App:
         v.activateWindow()
         return v
 
+    def open_dual(self, left="", right="", parent=None):
+        from .dual import DualDialog, DualViewerWindow
+        dlg = DualDialog(self.settings, left, right, parent)
+        if dlg.exec() != DualDialog.DialogCode.Accepted:
+            return None
+        sides, interval, paused, shuffle = dlg.values()
+        v = DualViewerWindow(sides, self.loader, self.settings, interval, paused, shuffle)
+        v.closed.connect(lambda _p, v=v: self.viewers.remove(v) if v in self.viewers else None)
+        self.viewers.append(v)
+        v.showFullScreen()
+        v.cursor_timer.start()
+        v.activateWindow()
+        return v
+
     def slideshow_from_paths(self, paths):
         """Slideshow avviato da Esplora risorse su una o più cartelle / archivi / immagini."""
         from .navigator import Navigator

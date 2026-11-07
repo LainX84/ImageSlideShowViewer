@@ -11,7 +11,7 @@ from PySide6.QtWidgets import (QFrame, QHBoxLayout, QLabel, QMenu, QMessageBox, 
 from .archive import is_virtual, parent_of, stat_any
 from . import APP_NAME
 from .i18n import num, tr
-from .utils import human_size
+from .utils import human_size, show_in_explorer
 
 INTERVALS = [0.5, 1, 1.5, 2, 3, 4, 5, 6, 8, 10, 15, 20, 30, 45, 60, 120]
 
@@ -31,7 +31,9 @@ class Canvas(QWidget):
         self.setAttribute(Qt.WidgetAttribute.WA_OpaquePaintEvent)
         self.setMouseTracking(True)
         self.image = None
+        self.image2 = None      # seconda immagine affiancata (modalità "2 affiancate")
         self._scaled = None
+        self._scaled2 = None
         self._full = None
         self.zoom = None  # None = adatta alla finestra
         self.enlarge = False
@@ -51,6 +53,7 @@ class Canvas(QWidget):
     # --------------------------------------------------------------- stato
     def set_image(self, img, keep_view=False):
         self.image = img
+        self.image2 = None
         self.message = ""
         self._full = None
         if not keep_view:
@@ -59,9 +62,21 @@ class Canvas(QWidget):
         self._rescale()
         self.update()
 
+    def set_pair(self, img1, img2):
+        """Due immagini affiancate, ognuna adattata a metà schermo (img2 può essere None)."""
+        self.image = img1
+        self.image2 = img2 if img2 is not None and not img2.isNull() else None
+        self.message = ""
+        self._full = None
+        self.offset = QPointF(0, 0)
+        self.zoom = None
+        self._rescale()
+        self.update()
+
     def set_message(self, text):
         self.image = None
-        self._scaled = self._full = None
+        self.image2 = None
+        self._scaled = self._scaled2 = self._full = None
         self.message = text
         self.update()
 
@@ -88,9 +103,31 @@ class Canvas(QWidget):
                 self.height() * dpr / self.image.height())
         return s if self.enlarge else min(s, 1.0)
 
+    GAP = 6
+
+    def _fit_pixmap(self, img, w_avail, h_avail):
+        dpr = self.devicePixelRatioF()
+        s = min(w_avail * dpr / img.width(), h_avail * dpr / img.height())
+        if not self.enlarge:
+            s = min(s, 1.0)
+        w, h = max(1, round(img.width() * s)), max(1, round(img.height() * s))
+        if (w, h) == (img.width(), img.height()):
+            pm = QPixmap.fromImage(img)
+        else:
+            pm = QPixmap.fromImage(img.scaled(w, h, Qt.AspectRatioMode.IgnoreAspectRatio,
+                                              Qt.TransformationMode.SmoothTransformation))
+        pm.setDevicePixelRatio(dpr)
+        return pm
+
     def _rescale(self):
         self._scaled = None
+        self._scaled2 = None
         if self.image is None or self.image.isNull() or self.zoom is not None:
+            return
+        if self.image2 is not None:
+            half = max(1.0, (self.width() - self.GAP) / 2)
+            self._scaled = self._fit_pixmap(self.image, half, self.height())
+            self._scaled2 = self._fit_pixmap(self.image2, half, self.height())
             return
         s = self.fit_scale()
         dpr = self.devicePixelRatioF()
@@ -106,7 +143,7 @@ class Canvas(QWidget):
         self._scaled = pm
 
     def set_zoom(self, z):
-        if self.image is None:
+        if self.image is None or self.image2 is not None:
             return
         if z is None:
             self.zoom = None
@@ -165,7 +202,15 @@ class Canvas(QWidget):
         p.fillRect(self.rect(), QColor(0, 0, 0))
         W, H = self.width(), self.height()
         if self.image is not None and not self.image.isNull():
-            if self.zoom is None and self._scaled is not None:
+            if self.image2 is not None and self._scaled is not None and self._scaled2 is not None:
+                # le due immagini si toccano al centro, come le pagine di un libro aperto
+                d1, d2 = self._scaled.devicePixelRatio(), self._scaled2.devicePixelRatio()
+                w1, h1 = self._scaled.width() / d1, self._scaled.height() / d1
+                h2 = self._scaled2.height() / d2
+                mid = W / 2
+                p.drawPixmap(QPointF(mid - self.GAP / 2 - w1, (H - h1) / 2), self._scaled)
+                p.drawPixmap(QPointF(mid + self.GAP / 2, (H - h2) / 2), self._scaled2)
+            elif self.zoom is None and self._scaled is not None:
                 dpr = self._scaled.devicePixelRatio()
                 w, h = self._scaled.width() / dpr, self._scaled.height() / dpr
                 p.drawPixmap(QPointF((W - w) / 2, (H - h) / 2), self._scaled)
@@ -294,6 +339,9 @@ class ViewerWindow(QWidget):
         self.slideshow_mode = slideshow
         self.started_as_slideshow = slideshow
         self.interval = float(settings.value("slideshow/interval", 4.0, type=float))
+        # due immagini affiancate (1-2, 3-4, …): opzione dello slideshow, attivabile anche con D
+        self.pair = slideshow and settings.value("slideshow/pair", False, type=bool)
+        self._shown2 = None
         self.canvas = Canvas(self)
         self.canvas.show_info = settings.value("viewer/show_info", False, type=bool)
         lay = QVBoxLayout(self)
@@ -336,6 +384,7 @@ class ViewerWindow(QWidget):
         self._stop_movie()
         path = self.nav.current()
         self._shown_path = path
+        self._shown2 = self._partner() if path else None
         if not path:
             self.canvas.set_message(tr("Nessuna immagine in questa cartella\n\n"
                                        "↓ / ↑  per cambiare cartella   ·   Esc per uscire"))
@@ -343,6 +392,9 @@ class ViewerWindow(QWidget):
             self._update_info()
             return
         self.setWindowTitle(f"{os.path.basename(path)} - {APP_NAME}")
+        if self.pair:
+            self._show_pair()
+            return
         if is_animated(path):
             self.movie = QMovie(path, parent=self)
             self.movie.frameChanged.connect(self._on_frame)
@@ -360,12 +412,82 @@ class ViewerWindow(QWidget):
             self.loader.request(path)
             self._update_info()
 
+    # ------------------------------------------------------ 2 affiancate
+    def _partner(self):
+        """Seconda immagine della coppia: la successiva nella stessa cartella, se c'è."""
+        if not self.pair:
+            return None
+        n = self.nav
+        return n.images[n.ii + 1] if 0 <= n.ii + 1 < len(n.images) else None
+
+    def _show_pair(self):
+        p1, p2 = self._shown_path, self._shown2
+        self.loader.request(p1)
+        if p2:
+            self.loader.request(p2, keep_wanted=True)
+        self._try_pair()
+
+    def _try_pair(self):
+        p1, p2 = self._shown_path, self._shown2
+        img1, err1 = self.loader.get(p1), self.loader.error(p1)
+        img2 = self.loader.get(p2) if p2 else None
+        err2 = self.loader.error(p2) if p2 else None
+        if img1 is None and not err1:
+            self._update_info()
+            return                      # si aspetta la prima immagine
+        if p2 and img2 is None and not err2:
+            self._update_info()
+            return                      # ... e la seconda
+        if err1 and (not p2 or err2):
+            self._display_error(p1, err1)
+            return
+        if err1:                        # la prima non si apre: si mostra solo la seconda
+            img1, img2 = img2, None
+        self.canvas.set_pair(img1, img2)
+        self._update_info()
+        self._after_display()
+
+    def _pair_step(self, d):
+        """Avanza (o torna indietro) di una coppia; a fine cartella passa alla successiva."""
+        n = self.nav
+        n.folder_changed = False
+        if not n.images:
+            return n.step(d)
+        old = n.ii
+        if d > 0:
+            if n.ii + 2 < len(n.images):
+                n.ii += 2
+                return True
+            n.ii = len(n.images) - 1
+            if n.step(1):
+                return True
+        else:
+            if n.ii > 0:
+                n.ii = max(0, n.ii - 2)
+                return True
+            n.ii = 0
+            if n.step(-1):
+                if n.folder_changed or n.ii > old:
+                    n.ii -= n.ii % 2    # nella cartella precedente si arriva sull'ultima coppia
+                return True
+        n.ii = old
+        return False
+
+    def toggle_pair(self):
+        self.pair = not self.pair
+        self.settings.setValue("slideshow/pair", self.pair)
+        self.canvas.flash(tr("Due immagini affiancate") if self.pair else tr("Un'immagine alla volta"))
+        self._show_current()
+
     def _on_frame(self, _n):
         if self.movie is not None:
             first = self.canvas.image is None or self.canvas.message
             self.canvas.set_image(self.movie.currentImage(), keep_view=not first)
 
     def _on_ready(self, path, img, err):
+        if self.pair and path in (self._shown_path, self._shown2):
+            self._try_pair()
+            return
         if path != self._shown_path or self.movie is not None:
             return
         if err:
@@ -384,9 +506,15 @@ class ViewerWindow(QWidget):
         self._after_display()
 
     def _after_display(self):
-        nxt = self.nav.peek(1)
-        if nxt and not is_animated(nxt):
-            self.loader.request(nxt, keep_wanted=True)
+        if self.pair:
+            for k in (2, 3):
+                nxt = self.nav.peek(k)
+                if nxt:
+                    self.loader.request(nxt, keep_wanted=True)
+        else:
+            nxt = self.nav.peek(1)
+            if nxt and not is_animated(nxt):
+                self.loader.request(nxt, keep_wanted=True)
         if self.playing:
             self.timer.start(int(self.interval * 1000))
 
@@ -403,9 +531,13 @@ class ViewerWindow(QWidget):
                 size = date = "?"
             dims = ""
             img = self.canvas.image
-            if img is not None and not img.isNull():
-                dims = f"   {img.width()}×{img.height()}   {self.canvas.current_scale() * 100:.0f}%"
-            lines.append(f"{os.path.basename(path)}   [{i}/{n}]{dims}   {size}   {date}")
+            if self._shown2 and self.pair:
+                lines.append(f"{os.path.basename(path)}  +  {os.path.basename(self._shown2)}"
+                             f"   [{i}-{i + 1}/{n}]   {date}")
+            else:
+                if img is not None and not img.isNull():
+                    dims = f"   {img.width()}×{img.height()}   {self.canvas.current_scale() * 100:.0f}%"
+                lines.append(f"{os.path.basename(path)}   [{i}/{n}]{dims}   {size}   {date}")
         fpos = self.nav.folder_position()
         ftxt = tr("Cartella {i}/{n}: ", i=fpos[0], n=fpos[1]) if fpos else tr("Cartella: ")
         lines.append(ftxt + self.nav.folder)
@@ -428,7 +560,11 @@ class ViewerWindow(QWidget):
 
     # ---------------------------------------------------------- navigazione
     def go(self, d):
-        if self.nav.step(d):
+        if self.pair and self.nav.images:
+            moved = self._pair_step(d)
+        else:
+            moved = self.nav.step(d)
+        if moved:
             self._show_current()
             if self.nav.folder_changed:
                 self._flash_folder()
@@ -458,7 +594,7 @@ class ViewerWindow(QWidget):
     def _auto_next(self):
         if not self.playing:
             return
-        if self.nav.step(1):
+        if (self._pair_step(1) if self.pair and self.nav.images else self.nav.step(1)):
             self._show_current()
             if self.nav.folder_changed:
                 self._flash_folder()
@@ -577,6 +713,24 @@ class ViewerWindow(QWidget):
         if was_playing:
             self.timer.start(int(self.interval * 1000))
 
+    def rename_current(self):
+        path = self.nav.current()
+        if not path or is_virtual(path):
+            return
+        was = self.playing
+        self.timer.stop()
+        from .fileops import rename_single
+        new = rename_single(self, path)
+        if new:
+            self.loader.forget(path)
+            if 0 <= self.nav.ii < len(self.nav.images):
+                self.nav.images[self.nav.ii] = new
+            self.files_changed.emit(parent_of(new))
+            self._shown_path = None
+            self._show_current()
+        elif was:
+            self.timer.start(int(self.interval * 1000))
+
     def _toggle_folder_osd(self, on):
         self.settings.setValue("osd/folder", on)
         self.apply_options()
@@ -609,7 +763,11 @@ class ViewerWindow(QWidget):
             self._show_current()
         elif k == K.Key_End:
             self.nav.last()
+            if self.pair:
+                self.nav.ii -= self.nav.ii % 2
             self._show_current()
+        elif k == K.Key_D:
+            self.toggle_pair()
         elif k in (K.Key_Space, K.Key_P, K.Key_MediaTogglePlayPause, K.Key_MediaPlay):
             self.toggle_play()
         elif k in (K.Key_S, K.Key_MediaStop, K.Key_MediaPause):
@@ -630,6 +788,11 @@ class ViewerWindow(QWidget):
             self.change_interval(-1) if self.slideshow_mode and not ctrl else self.zoom_step(0.8)
         elif k == K.Key_Delete:
             self.delete_current()
+        elif k == K.Key_F2:
+            self.rename_current()
+        elif k == K.Key_C and ctrl:
+            from .fileops import copy_image
+            copy_image(self.canvas.image)
         else:
             super().keyPressEvent(e)
 
@@ -685,6 +848,10 @@ class ViewerWindow(QWidget):
         m.addAction(tr("Intervallo più lungo  (+)"), lambda: self.change_interval(1))
         m.addAction(tr("Intervallo più corto  (−)"), lambda: self.change_interval(-1))
         m.addSeparator()
+        a2 = m.addAction(tr("Due immagini affiancate  (D)"))
+        a2.setCheckable(True)
+        a2.setChecked(self.pair)
+        a2.toggled.connect(lambda _v: self.toggle_pair())
         m.addAction(tr("Adatta / 100%  (Z)"), self.toggle_zoom)
         m.addAction(tr("Schermo intero  (F)"), self.toggle_fullscreen)
         m.addAction(tr("Mostra informazioni  (I)"), self.toggle_info)
@@ -693,6 +860,29 @@ class ViewerWindow(QWidget):
         a.setChecked(self.canvas.style_["osd/folder"])
         a.toggled.connect(self._toggle_folder_osd)
         m.addAction(tr("Opzioni avvisi e colori…  (O)"), self.open_options)
+        m.addSeparator()
+        from . import fileops
+        path = self.nav.current()
+        real = bool(path) and not is_virtual(path)
+        m.addAction(tr("Copia immagine"), lambda: fileops.copy_image(self.canvas.image)) \
+            .setEnabled(self.canvas.image is not None)
+        m.addAction(tr("Copia file"), lambda: fileops.clipboard_set([path])).setEnabled(real)
+        om = m.addMenu(tr("Apri con"))
+        om.setEnabled(real)
+        om.addAction(tr("Programma predefinito"), lambda: fileops.open_default(path))
+        om.addAction(tr("Scegli un programma…"), lambda: fileops.open_with(path))
+        om.addAction(tr("Modifica con Paint"), lambda: fileops.edit_with_paint(path))
+        m.addAction(tr("Rinomina…  (F2)"), self.rename_current).setEnabled(real)
+        m.addAction(tr("Imposta come sfondo del desktop"),
+                    lambda: fileops.set_wallpaper(self, path)).setEnabled(bool(path))
+        m.addAction(tr("Stampa…"), lambda: fileops.print_images(self, [path])).setEnabled(bool(path))
+        m.addSeparator()
+        m.addAction(tr("Mostra in Esplora risorse"),
+                    lambda: show_in_explorer(path.split("|", 1)[0])).setEnabled(bool(path))
+        m.addAction(tr("Copia percorso"),
+                    lambda: fileops.copy_as_path([path.replace("|", os.sep)])).setEnabled(bool(path))
+        m.addAction(tr("Proprietà"), lambda: fileops.show_properties(self, path, self.canvas.image)) \
+            .setEnabled(bool(path))
         m.addSeparator()
         m.addAction(tr("Elimina  (Canc)"), self.delete_current)
         m.addAction(tr("Torna al browser  (Invio)"), self.back_to_browser)

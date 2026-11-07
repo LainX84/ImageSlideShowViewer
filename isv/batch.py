@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (QApplication, QButtonGroup, QCheckBox,
 
 from . import rename as R
 from .i18n import tr
-from .utils import natural_key, samepath, unique_path  # noqa: F401  (natural_key usato da app)
+from .utils import is_inside, natural_key, samepath, unique_path  # noqa: F401  (natural_key usato da app)
 
 
 def move_to_trash(path):
@@ -120,6 +120,9 @@ class ConvertDialog(QDialog):
         l2 = QHBoxLayout(); l2.addWidget(self.r_dir); l2.addWidget(self.dir_edit); l2.addWidget(browse)
         self.exists = QComboBox()
         self.exists.addItems([tr("Aggiungi un numero al nome"), tr("Salta"), tr("Sovrascrivi")])
+        self.del_orig = QCheckBox(tr("Sposta gli originali nel Cestino dopo la conversione"))
+        self.del_orig.setToolTip(tr("Solo per i file convertiti senza errori; si possono "
+                                    "recuperare dal Cestino."))
         note = QLabel(tr("Nota: la conversione raddrizza le foto ruotate ma non copia i dati EXIF."))
         note.setStyleSheet("color: gray")
         form = QFormLayout()
@@ -130,6 +133,7 @@ class ConvertDialog(QDialog):
         ow = QWidget(); ow.setLayout(out)
         form.addRow(tr("Salva in:"), ow)
         form.addRow(tr("Se il file esiste:"), self.exists)
+        form.addRow(tr("Originali:"), self.del_orig)
         bb = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         bb.button(QDialogButtonBox.StandardButton.Ok).setText(tr("Converti"))
         bb.accepted.connect(self.accept)
@@ -164,7 +168,7 @@ class ConvertDialog(QDialog):
             QMessageBox.warning(self.parent(), tr("Converti"), tr("Scegli una cartella di destinazione."))
             return False
         prog = _progress(self.parent(), tr("Conversione in corso…"), len(self.paths))
-        done, errors = 0, []
+        done, errors, converted = 0, [], []
         for i, p in enumerate(self.paths):
             if prog.wasCanceled():
                 break
@@ -179,12 +183,25 @@ class ConvertDialog(QDialog):
             else:
                 out_dir = src_dir
             try:
-                if convert_one(p, out_dir, fmt, ext, self.quality.value(), side, policy):
+                dst = convert_one(p, out_dir, fmt, ext, self.quality.value(), side, policy)
+                if dst:
                     done += 1
+                    if self.del_orig.isChecked() and not samepath(dst, p):
+                        converted.append(p)
             except OSError as e:
                 errors.append(f"{os.path.basename(p)}: {e}")
         prog.setValue(len(self.paths))
+        trashed = 0
+        for p in converted:
+            if move_to_trash(p):
+                trashed += 1
+            else:
+                errors.append(f"{os.path.basename(p)}: " + tr("impossibile spostare l'originale nel Cestino"))
         _report(self.parent(), tr("Converti"), done, errors, tr("Convertiti"))
+        if trashed and not errors:
+            QMessageBox.information(self.parent(), tr("Converti"),
+                                    tr("Convertiti: {done} file.\nOriginali spostati nel Cestino: {n}.",
+                                       done=done, n=trashed))
         return True
 
 
@@ -194,10 +211,15 @@ def copy_move_files(paths, dest, move=False, exists="rename", progress=None):
     for i, p in enumerate(paths):
         if progress and progress(i, p):
             break
-        if samepath(os.path.dirname(p), dest):
+        if os.path.isdir(p) and is_inside(dest, p):
+            errors.append(f"{os.path.basename(p)}: " + tr("la destinazione è dentro la cartella stessa"))
             continue
         dst = os.path.join(dest, os.path.basename(p))
-        if os.path.exists(dst):
+        if samepath(os.path.dirname(p), dest):
+            if move:
+                continue
+            dst = unique_path(dst)      # copia nella stessa cartella: "nome (2).jpg"
+        elif os.path.exists(dst):
             if exists == "skip":
                 continue
             if exists == "rename":
@@ -221,6 +243,12 @@ def copy_move_dialog(parent, paths, settings, move=False):
     if not dest:
         return False
     settings.setValue("batch/last_dest", dest)
+    return transfer(parent, paths, dest, move)
+
+
+def transfer(parent, paths, dest, move=False):
+    """Copia o sposta in dest chiedendo cosa fare con i file già presenti (anche per Incolla)."""
+    title = tr("Sposta in") if move else tr("Copia in")
     conflicts = [p for p in paths if os.path.exists(os.path.join(dest, os.path.basename(p)))
                  and not samepath(os.path.dirname(p), dest)]
     policy = "rename"

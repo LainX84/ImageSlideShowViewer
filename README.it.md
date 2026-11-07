@@ -16,11 +16,13 @@ e operazioni in blocco.<br>
 - **Browser** con albero delle cartelle e griglia di miniature (in cache su disco), ordinamento naturale per nome, data o dimensione.
 - **Visualizzatore** con adatta alla finestra / 100% / zoom, rotazione automatica secondo l'EXIF, GIF e WebP animate.
 - **Slideshow** con intervallo, ordine casuale, ripetizione e sottocartelle; **↓ / ↑ saltano alla cartella successiva / precedente** mentre scorre.
+- **Due immagini affiancate** (1-2, 3-4…) e **slideshow di due cartelle diverse affiancate**.
 - **Archivi CBZ / ZIP** mostrati come cartelle con la copertina, da sfogliare come fumetti.
 - **Rinomina in blocco** sul modello di ACDSee: modello, cerca e sostituisci, maiuscole/minuscole, inserisci testo, rimuovi testo, spazi, con anteprima immediata.
 - **Conversione in blocco** in JPEG, PNG, WebP, BMP o TIFF, con qualità e ridimensionamento.
-- **Copia / sposta / elimina** (nel Cestino) di file e cartelle.
-- **Menu contestuale di Esplora risorse**: clic destro su una cartella, un archivio o un'immagine per avviare lo slideshow, rinominare o convertire.
+- **Copia / sposta / elimina** (nel Cestino) di file e cartelle, **taglia / copia / incolla** che funziona anche con Esplora risorse.
+- **Menu del tasto destro** nel browser e nel visualizzatore, sul modello di ACDSee: apri con, elaborazione in blocco, sfondo del desktop, rinomina, stampa, copia percorso, proprietà…
+- **Menu contestuale di Esplora risorse** (facoltativo): clic destro su una cartella, un archivio o un'immagine in Esplora risorse per avviare lo slideshow, rinominare o convertire.
 - **Cartelle di rete**: scrivi `\\192.168.0.2` per vedere le cartelle condivise di un computer.
 - Interfaccia in **italiano e inglese**, selezionabile dal menu.
 
@@ -79,26 +81,40 @@ Da quel momento, con un doppio clic su una foto si apre il visualizzatore. **Inv
 - Le miniature restano in cache su disco, quindi alla seconda apertura di una cartella compaiono subito.
 - Puoi ordinare per nome (con numeri naturali: foto2 viene prima di foto10), per data o per dimensione, anche in ordine decrescente.
 - Il cursore *Miniature* cambia la dimensione delle anteprime. La cartella si aggiorna da sola quando i file cambiano.
-- **Tasto destro** sulle miniature: visualizza, *Slideshow su «cartella»* (solo quella cartella o quell'archivio), slideshow, rinomina, converti, copia, sposta, elimina, mostra in Esplora risorse.
+- **Tasto destro** sulle miniature apre un menu come quello di ACDSee:
+  - *Visualizza*, *Slideshow* (F5), *Slideshow di 2 cartelle affiancate…* (con due cartelle selezionate)
+  - *Apri con* ▸ programma predefinito, scegli un programma…, modifica con Paint
+  - *Elaborazione in blocco* ▸ rinomina in blocco, converti formato
+  - *Imposta come sfondo del desktop*
+  - *Taglia*, *Copia*, *Incolla* (nella cartella corrente, oppure *Incolla nella cartella* su una cartella), *Elimina*, *Rinomina*
+  - *Copia in…*, *Sposta in…*, *Stampa…*, *Mostra in Esplora risorse*, *Copia percorso*, *Proprietà* (la finestra delle proprietà di Windows)
+
+  Sullo spazio vuoto: *Incolla*, *Nuova cartella…*, *Slideshow*, *Seleziona tutto*, *Ordina per* ▸, *Aggiorna*, *Mostra in Esplora risorse*, *Proprietà* della cartella. Taglia/copia/incolla usano gli appunti di Windows, quindi puoi copiare nel programma e incollare in Esplora risorse, o viceversa. Dentro un archivio restano solo i comandi che non modificano i file.
 - **Archivi ZIP / CBZ:** compaiono come cartelle (in azzurro) con la copertina. Doppio clic per entrarci, oppure selezionali e avvia lo slideshow: sono trattati come cartelle anche dal salto cartella (↓/↑) e da "Includi sottocartelle". Le immagini dentro le sottocartelle dell'archivio vengono mostrate in ordine. Dentro un archivio non si possono rinominare né eliminare singole immagini; RAR/CBR e 7Z non sono supportati.
 - **Rete:** nella barra del percorso puoi scrivere `\\192.168.0.2` (o il nome del computer) per vedere le sue cartelle condivise, oppure direttamente `\\192.168.0.2\Foto`. Con *Su* da una condivisione torni all'elenco delle condivisioni. Se il computer chiede una password, accedi prima una volta da Esplora risorse.
 
 | Tasto | Azione |
 |---|---|
 | Invio / doppio clic | Apri la cartella o l'immagine |
-| F5 | Slideshow |
-| F2 | Rinomina in blocco |
+| F5, Ctrl+S | Slideshow |
+| Maiusc+F5 | Slideshow di 2 cartelle affiancate |
+| F2 | Rinomina (con più file selezionati: rinomina in blocco) |
+| Ctrl+F2 | Rinomina in blocco |
 | Ctrl+Maiusc+C | Converti formato |
+| Ctrl+X / Ctrl+C / Ctrl+V | Taglia / copia / incolla |
+| Ctrl+Maiusc+N | Nuova cartella |
 | Ctrl+Maiusc+K / M | Copia in… / Sposta in… |
+| Ctrl+P | Stampa |
+| Alt+Invio | Proprietà |
 | Canc | Sposta nel Cestino |
 | Backspace, Alt+↑ / Alt+← | Cartella superiore / Indietro |
 | F1 | Elenco delle scorciatoie |
 
 ## Slideshow
 
-Le opzioni sono nella seconda barra: **Intervallo**, **Casuale**, **Ripeti** e **Includi sottocartelle**.
+Le opzioni sono nella seconda barra: **Intervallo**, **Casuale**, **Ripeti**, **Includi sottocartelle** e **2 affiancate**.
 
-- Con **una cartella selezionata**, lo slideshow parte da quella e prosegue con tutte le altre cartelle della vista. Tasto destro → *Slideshow su «cartella»* mostra solo quella.
+- Con **una cartella selezionata**, lo slideshow parte da quella e prosegue con tutte le altre cartelle della vista.
 - Con **più cartelle selezionate** (Ctrl+clic o Maiusc+clic), lo slideshow mostra solo quelle, una dopo l'altra.
 - ↓/↑ portano sempre alla cartella successiva/precedente rispetto a quella che stai guardando, anche dopo aver scorso le immagini con →/←. Una cartella che contiene solo sottocartelle viene percorsa comunque con tutte le sue sottocartelle.
 - Se non selezioni niente e la cartella corrente contiene solo sottocartelle, lo slideshow le percorre tutte.
@@ -120,10 +136,38 @@ Le opzioni sono nella seconda barra: **Intervallo**, **Casuale**, **Ripeti** e *
 | Ctrl+rotellina | Zoom (trascina per spostarti) |
 | I | Informazioni (nome, dimensioni, cartella, stato) |
 | Canc | Sposta nel Cestino |
+| F2 | Rinomina l'immagine |
+| Ctrl+C | Copia l'immagine negli appunti |
 | Invio | Torna al browser su questa immagine |
+| D | Due immagini affiancate sì/no |
 | Esc | Chiudi |
 
-Muovendo il mouse compare in basso una **barra dei comandi** con *Avvia/Ferma*, immagine e cartella precedente/successiva, intervallo e *Opzioni*. Mentre lo slideshow è fermo, in alto a destra resta visibile l'indicatore "In pausa". Il tasto destro sull'immagine apre un menu con tutti i comandi.
+Muovendo il mouse compare in basso una **barra dei comandi** con *Avvia/Ferma*, immagine e cartella precedente/successiva, intervallo e *Opzioni*. Mentre lo slideshow è fermo, in alto a destra resta visibile l'indicatore "In pausa". Il tasto destro sull'immagine apre un menu con tutti i comandi, più copia immagine, copia file, apri con, rinomina, imposta come sfondo, stampa, mostra in Esplora risorse, copia percorso e proprietà.
+
+### Due immagini affiancate
+
+Con **2 affiancate** spuntato (o il tasto **D** durante lo slideshow) si vedono due immagini alla volta, una accanto all'altra come le pagine di un libro aperto: 1-2, poi 3-4, 5-6 e così via. Se la cartella ha un numero dispari di immagini l'ultima resta da sola; poi lo slideshow passa alla cartella successiva come sempre. ←/→ vanno avanti e indietro di una coppia, ↓/↑ saltano ancora da una cartella all'altra, lo zoom in questa modalità non è disponibile.
+
+### Slideshow di 2 cartelle affiancate
+
+*Visualizza → Slideshow di 2 cartelle affiancate…* (Maiusc+F5) mostra due cartelle diverse (o archivi CBZ/ZIP) una accanto all'altra, un'immagine per lato. Se nel browser hai selezionato due cartelle, sono già inserite.
+
+- Per ogni lato scegli se **avanza in automatico** con lo slideshow oppure solo **a mano**. Puoi anche partire fermo e avviarlo con Spazio.
+- Qui non c'è il salto cartella: quando un lato arriva all'ultima immagine ricomincia dalla prima, quindi la cartella con meno immagini va in loop mentre l'altra prosegue.
+- Ordine casuale facoltativo, intervallo regolabile con + / −.
+
+| Tasto | Azione |
+|---|---|
+| → / ← | Successiva / precedente su entrambi i lati |
+| W / Q | Successiva / precedente a sinistra |
+| P / O | Successiva / precedente a destra |
+| Clic / rotellina su un lato | Successiva (Maiusc+clic: precedente) su quel lato |
+| Spazio | Avvia / ferma |
+| X | Scambia i lati |
+| + / − | Intervallo più lungo / più corto |
+| F, I, Esc | Schermo intero, informazioni, chiudi |
+
+Il tasto destro mostra gli stessi comandi e permette di passare ogni lato da automatico a manuale.
 
 ### Opzioni (tasto O, o menu Strumenti → Opzioni visualizzatore e slideshow)
 
@@ -134,7 +178,7 @@ Muovendo il mouse compare in basso una **barra dei comandi** con *Avvia/Ferma*, 
 
 ## Rinomina in blocco
 
-Seleziona i file (immagini e anche archivi CBZ/ZIP) e premi **F2**, oppure usa il tasto destro nel browser o in Esplora risorse. Come in ACDSee, la rinomina è un **elenco di operazioni** applicate in ordine: spunta quelle che ti servono, cambiane l'ordine con ↑ / ↓, aggiungine altre con **+** (anche più dello stesso tipo) e toglile con **−**. L'anteprima mostra subito i nuovi nomi.
+Seleziona i file (immagini e anche archivi CBZ/ZIP) e premi **Ctrl+F2** (o F2 con più file selezionati), oppure usa *Elaborazione in blocco → Rinomina in blocco* dal tasto destro nel browser o in Esplora risorse. Come in ACDSee, la rinomina è un **elenco di operazioni** applicate in ordine: spunta quelle che ti servono, cambiane l'ordine con ↑ / ↓, aggiungine altre con **+** (anche più dello stesso tipo) e toglile con **−**. L'anteprima mostra subito i nuovi nomi.
 
 | Operazione | Cosa fa |
 |---|---|
@@ -154,7 +198,7 @@ I nomi non validi per Windows (caratteri `< > : " / \ | ? *`, punto o spazio fin
 
 ## Altre operazioni in blocco
 
-- **Converti**: salva in JPEG, PNG, WebP, BMP o TIFF, con qualità e riduzione del lato lungo regolabili, in una sottocartella, in un'altra cartella o accanto agli originali. Le foto vengono raddrizzate secondo l'EXIF, ma i dati EXIF non vengono copiati.
+- **Converti**: salva in JPEG, PNG, WebP, BMP o TIFF, con qualità e riduzione del lato lungo regolabili, in una sottocartella, in un'altra cartella o accanto agli originali. A scelta, dopo la conversione gli originali vengono spostati nel Cestino (solo quelli convertiti senza errori). Le foto vengono raddrizzate secondo l'EXIF, ma i dati EXIF non vengono copiati.
 - **Copia / Sposta** (anche cartelle intere): se un file esiste già nella destinazione, puoi aggiungere un numero al nome, sovrascrivere o saltarlo.
 - **Elimina**: sposta file o cartelle nel Cestino, quindi sono recuperabili.
 
@@ -180,10 +224,12 @@ isv/__init__.py              nome, versione, autore
 isv/app.py                   avvio, riga di comando, coordinamento finestre, tema scuro
 isv/browser.py               finestra principale (albero + miniature, menu)
 isv/thumbs.py                miniature e cache su disco
-isv/viewer.py                visualizzatore e slideshow
+isv/viewer.py                visualizzatore e slideshow (anche 2 affiancate)
+isv/dual.py                  slideshow di 2 cartelle affiancate
 isv/navigator.py             logica di scorrimento immagini e cartelle
 isv/batch.py                 finestre di rinomina / converti / copia / sposta / elimina
 isv/rename.py                motore della rinomina (senza Qt, provabile da solo)
+isv/fileops.py               appunti, apri con, sfondo, stampa, proprietà, rinomina
 isv/shell.py                 menu contestuale di Esplora risorse (registro)
 isv/single.py                riunisce in una finestra i file selezionati in Esplora risorse
 isv/about.py                 finestra Informazioni

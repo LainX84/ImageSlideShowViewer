@@ -15,11 +15,13 @@ a slideshow that jumps from one folder to the next, CBZ/ZIP comic archives and b
 - **Browser** with folder tree and thumbnail grid (thumbnails cached on disk), natural sort by name, date or size.
 - **Viewer** with fit-to-window / 100% / zoom, EXIF auto-rotation and animated GIF/WebP.
 - **Slideshow** with interval, random order, loop and subfolders; **↓ / ↑ jump to the next / previous folder** while it runs.
+- **Two images side by side** (1-2, 3-4…) and a **side-by-side slideshow of two different folders**.
 - **CBZ / ZIP archives** shown as folders with their cover, readable like comics.
 - **Batch rename** modelled on ACDSee: template, search and replace, case change, insert text, remove text, strip spaces, with live preview.
 - **Batch convert** to JPEG, PNG, WebP, BMP or TIFF, with quality and resizing.
-- **Copy / move / delete** (to the Recycle Bin) of files and folders.
-- **Explorer context menu**: right-click a folder, an archive or an image to start a slideshow, rename or convert.
+- **Copy / move / delete** (to the Recycle Bin) of files and folders, **cut / copy / paste** that also works with Explorer.
+- **Right-click menu** in the browser and in the viewer, modelled on ACDSee: open with, batch, wallpaper, rename, print, copy as path, properties…
+- Optional **Explorer context menu**: right-click a folder, an archive or an image in Windows Explorer to start a slideshow, rename or convert.
 - **Network shares**: type `\\192.168.0.2` to list the shared folders of a computer.
 - **English and Italian** interface, selectable from the menu.
 
@@ -78,26 +80,40 @@ From then on, double-clicking a photo opens the viewer, and **Enter** takes you 
 - Thumbnails are cached on disk, so the second time a folder opens they appear immediately.
 - Sort by name (natural order: photo2 comes before photo10), date or size, also descending.
 - The *Thumbnails* slider changes the preview size. The folder refreshes on its own when files change.
-- **Right-click** on the thumbnails: view, *Slideshow on "folder"* (only that folder or archive), slideshow, rename, convert, copy, move, delete, show in Explorer.
+- **Right-click** on the thumbnails opens a menu like ACDSee's:
+  - *View*, *Slideshow* (F5), *Side-by-side slideshow of 2 folders…* (when two folders are selected)
+  - *Open with* ▸ default program, choose another app…, edit with Paint
+  - *Batch* ▸ batch rename, convert format
+  - *Set as desktop wallpaper*
+  - *Cut*, *Copy*, *Paste* (into the current folder, or *Paste into folder* on a folder), *Delete*, *Rename*
+  - *Copy to…*, *Move to…*, *Print…*, *Show in Explorer*, *Copy as path*, *Properties* (the Windows properties window)
+
+  On an empty area: *Paste*, *New folder…*, *Slideshow*, *Select all*, *Sort by* ▸, *Refresh*, *Show in Explorer*, *Properties* of the folder. Cut/copy/paste use the Windows clipboard, so you can copy in the program and paste in Explorer, or the other way round. Inside an archive only the commands that do not change files are available.
 - **ZIP / CBZ archives** appear as light-blue folders with their cover. Double-click to open them, or select them and start the slideshow: the folder jump (↓/↑) and *Include subfolders* treat them like folders. Images inside the archive's subfolders are shown in order. Single images inside an archive cannot be renamed or deleted; RAR/CBR and 7Z are not supported.
 - **Network:** type `\\192.168.0.2` (or the computer name) in the path bar to see its shared folders, or directly `\\192.168.0.2\Photos`. *Up* from a share goes back to the list of shares. If the computer asks for a password, sign in once from Explorer first.
 
 | Key | Action |
 |---|---|
 | Enter / double-click | Open the folder or image |
-| F5 | Slideshow |
-| F2 | Batch rename |
+| F5, Ctrl+S | Slideshow |
+| Shift+F5 | Side-by-side slideshow of 2 folders |
+| F2 | Rename (with several files selected: batch rename) |
+| Ctrl+F2 | Batch rename |
 | Ctrl+Shift+C | Convert format |
+| Ctrl+X / Ctrl+C / Ctrl+V | Cut / copy / paste |
+| Ctrl+Shift+N | New folder |
 | Ctrl+Shift+K / M | Copy to… / Move to… |
+| Ctrl+P | Print |
+| Alt+Enter | Properties |
 | Del | Move to the Recycle Bin |
 | Backspace, Alt+↑ / Alt+← | Parent folder / Back |
 | F1 | List of shortcuts |
 
 ## Slideshow
 
-The options are on the second toolbar: **Interval**, **Random**, **Loop** and **Include subfolders**.
+The options are on the second toolbar: **Interval**, **Random**, **Loop**, **Include subfolders** and **2 side by side**.
 
-- With **one folder selected**, the slideshow starts from it and continues with the other folders in the view. Right-click → *Slideshow on "folder"* plays only that one.
+- With **one folder selected**, the slideshow starts from it and continues with the other folders in the view.
 - With **several folders selected** (Ctrl+click or Shift+click), the slideshow shows only those, one after another.
 - ↓/↑ always go to the folder after/before the one you are looking at, even after browsing images with →/←. A folder containing only subfolders is played through all of its subfolders.
 - If nothing is selected and the current folder contains only subfolders, the slideshow plays all of them.
@@ -119,10 +135,38 @@ The options are on the second toolbar: **Interval**, **Random**, **Loop** and **
 | Ctrl+wheel | Zoom (drag to pan) |
 | I | Information (name, size, folder, status) |
 | Del | Move to the Recycle Bin |
+| F2 | Rename the image |
+| Ctrl+C | Copy the image to the clipboard |
 | Enter | Back to the browser on this image |
+| D | Two images side by side on/off |
 | Esc | Close |
 
-Moving the mouse shows a **control bar** at the bottom with *Start/Stop*, previous/next image and folder, interval and *Options*. While the slideshow is stopped, a "Paused" badge stays in the top right corner. Right-clicking the image opens a menu with all the commands.
+Moving the mouse shows a **control bar** at the bottom with *Start/Stop*, previous/next image and folder, interval and *Options*. While the slideshow is stopped, a "Paused" badge stays in the top right corner. Right-clicking the image opens a menu with all the commands, plus copy image, copy file, open with, rename, set as wallpaper, print, show in Explorer, copy as path and properties.
+
+### Two images side by side
+
+With **2 side by side** ticked (or the **D** key during the slideshow) two images are shown at a time, next to each other like the pages of an open book: 1-2, then 3-4, 5-6 and so on. If a folder has an odd number of images, the last one is shown alone; then the slideshow moves on to the next folder as usual. ←/→ move by one pair, ↓/↑ still jump between folders, and zoom is not available in this mode.
+
+### Side-by-side slideshow of 2 folders
+
+*View → Side-by-side slideshow of 2 folders…* (Shift+F5) shows two different folders (or CBZ/ZIP archives) next to each other, one image per side. If you selected two folders in the browser they are already filled in.
+
+- For each side choose whether it **advances automatically** with the slideshow or only **manually**. You can also start paused and start it with Space.
+- There is no folder jump here: when a side reaches its last image it starts again from the first, so the folder with fewer images loops while the other one goes on.
+- Optional random order, interval adjustable with + / −.
+
+| Key | Action |
+|---|---|
+| → / ← | Next / previous on both sides |
+| W / Q | Next / previous on the left side |
+| P / O | Next / previous on the right side |
+| Click / mouse wheel on a side | Next (Shift+click: previous) on that side |
+| Space | Start / stop |
+| X | Swap sides |
+| + / − | Longer / shorter interval |
+| F, I, Esc | Full screen, information, close |
+
+Right-click shows the same commands, and lets you switch each side between automatic and manual.
 
 ### Options (O key, or Tools → Viewer and slideshow options)
 
@@ -133,7 +177,7 @@ Moving the mouse shows a **control bar** at the bottom with *Start/Stop*, previo
 
 ## Batch rename
 
-Select the files (images and also CBZ/ZIP archives) and press **F2**, or use the right-click menu in the browser or in Explorer. As in ACDSee, the rename is a **list of operations** applied in order: tick the ones you need, change their order with ↑ / ↓, add more with **+** (even several of the same kind) and remove them with **−**. The preview shows the new names immediately.
+Select the files (images and also CBZ/ZIP archives) and press **Ctrl+F2** (or F2 with several files selected), or use *Batch → Batch rename* in the right-click menu in the browser or in Explorer. As in ACDSee, the rename is a **list of operations** applied in order: tick the ones you need, change their order with ↑ / ↓, add more with **+** (even several of the same kind) and remove them with **−**. The preview shows the new names immediately.
 
 | Operation | What it does |
 |---|---|
@@ -153,7 +197,7 @@ Invalid names for Windows (characters `< > : " / \ | ? *`, trailing dot or space
 
 ## Other batch operations
 
-- **Convert**: saves as JPEG, PNG, WebP, BMP or TIFF, with adjustable quality and long-side reduction, into a subfolder, another folder or next to the originals. Photos are straightened according to EXIF, but EXIF data is not copied.
+- **Convert**: saves as JPEG, PNG, WebP, BMP or TIFF, with adjustable quality and long-side reduction, into a subfolder, another folder or next to the originals. Optionally the originals are moved to the Recycle Bin once converted (only those converted without errors). Photos are straightened according to EXIF, but EXIF data is not copied.
 - **Copy / Move** (whole folders too): if a file already exists in the destination you can add a number to the name, overwrite it or skip it.
 - **Delete**: moves files or folders to the Recycle Bin, so they can be recovered.
 
@@ -179,10 +223,12 @@ isv/__init__.py              name, version, author
 isv/app.py                   startup, command line, window coordination, dark theme
 isv/browser.py               main window (tree + thumbnails, menus)
 isv/thumbs.py                thumbnails and disk cache
-isv/viewer.py                viewer and slideshow
+isv/viewer.py                viewer and slideshow (also two side by side)
+isv/dual.py                  side-by-side slideshow of 2 folders
 isv/navigator.py             image and folder navigation logic
 isv/batch.py                 rename / convert / copy / move / delete dialogs
 isv/rename.py                batch rename engine (no Qt, testable on its own)
+isv/fileops.py               clipboard, open with, wallpaper, print, properties, rename
 isv/shell.py                 Explorer context menu (registry)
 isv/single.py                gathers into one window the files selected in Explorer
 isv/about.py                 About window

@@ -17,17 +17,19 @@ def _read(path, wanted):
     try:
         r, _keep = image_reader(path)
     except Exception as e:  # noqa: BLE001 - archivio danneggiato, file sparito...
-        return path, QImage(), str(e) or "Impossibile leggere il file"
+        from .i18n import tr
+        return path, QImage(), str(e) or tr("Impossibile leggere il file")
     r.setAutoTransform(True)  # rispetta l'orientamento EXIF
     img = r.read()
-    err = "" if not img.isNull() else (r.errorString() or "Formato non leggibile")
+    from .i18n import tr
+    err = "" if not img.isNull() else (r.errorString() or tr("Formato non leggibile"))
     return path, img, err
 
 
 class ImageLoader(QObject):
     ready = Signal(str, QImage, str)  # path, immagine, errore
 
-    def __init__(self, cache_size=6, parent=None):
+    def __init__(self, cache_size=10, parent=None):
         super().__init__(parent)
         self.worker = BgWorker(2, self)
         self.cache = OrderedDict()

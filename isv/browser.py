@@ -8,7 +8,7 @@ from PySide6.QtWidgets import (QAbstractItemView, QApplication, QCheckBox, QComb
                                QLineEdit, QListView, QMainWindow, QMenu, QMessageBox,
                                QSlider, QSplitter, QStyle, QToolBar, QTreeView)
 
-from . import batch
+from . import batch, fileops
 from .archive import is_archive, parent_of
 from .navigator import Navigator
 from .thumbs import ThumbDelegate, ThumbModel
@@ -29,18 +29,25 @@ def help_html():
     rows_b = [
         (tr("<b>Invio</b> / doppio clic"), tr("apri la cartella o l'immagine")),
         ("<b>F5</b>", tr("slideshow: cartelle selezionate, immagini selezionate o cartella corrente")),
-        ("<b>F2</b>", tr("rinomina in blocco")),
+        (tr("<b>Maiusc+F5</b>"), tr("slideshow di 2 cartelle affiancate")),
+        ("<b>F2</b>", tr("rinomina (più file selezionati: rinomina in blocco)")),
+        ("<b>Ctrl+F2</b>", tr("rinomina in blocco")),
+        ("<b>Ctrl+X / C / V</b>", tr("taglia / copia / incolla (anche con Esplora risorse)")),
+        (tr("<b>Ctrl+Maiusc+N</b>"), tr("nuova cartella")),
+        ("<b>Ctrl+P</b>", tr("stampa")),
+        (tr("<b>Alt+Invio</b>"), tr("proprietà")),
         (tr("<b>Ctrl+Maiusc+C</b>"), tr("converti formato")),
         (tr("<b>Canc</b>"), tr("sposta nel Cestino")),
         ("<b>Backspace</b> / Alt+↑", tr("cartella superiore")),
         ("<b>Ctrl+R</b>", tr("aggiorna")),
-        (tr("tasto destro"), tr("menu con slideshow, rinomina, converti, copia, sposta")),
+        (tr("tasto destro"), tr("menu con tutti i comandi sui file selezionati")),
     ]
     rows_v = [
         (tr("<b>→ ←</b>, PagGiù/PagSu, rotellina"), tr("immagine successiva / precedente")),
         ("<b>↓ ↑</b>, Ctrl+→/←", tr("cartella successiva / precedente")),
         (tr("<b>Spazio</b> / P"), tr("avvia / ferma lo slideshow")),
         ("<b>S</b>", tr("ferma lo slideshow")),
+        ("<b>D</b>", tr("due immagini affiancate sì/no")),
         ("<b>O</b>", tr("opzioni: nome cartella sì/no, colori, barra comandi")),
         (tr("muovi il mouse"), tr("barra dei comandi (avvia/ferma, cartelle, intervallo)")),
         ("<b>+ −</b>", tr("intervallo più lungo / più corto (in slideshow)")),
@@ -50,6 +57,8 @@ def help_html():
         (tr("<b>Ctrl+rotellina</b>"), tr("zoom (trascina per spostarti)")),
         ("<b>I</b>", tr("mostra / nascondi informazioni")),
         (tr("<b>Canc</b>"), tr("sposta nel Cestino")),
+        ("<b>F2</b>", tr("rinomina l'immagine")),
+        ("<b>Ctrl+C</b>", tr("copia l'immagine negli appunti")),
         (tr("<b>Invio</b>"), tr("torna al browser su questa immagine")),
         ("<b>Esc</b>", tr("chiudi")),
     ]
@@ -151,8 +160,21 @@ class BrowserWindow(QMainWindow):
         self.a_open_dir = self._act(tr("Apri cartella…"), self.choose_folder, "Ctrl+O")
         self.a_view = self._act(tr("Visualizza"), lambda: self.open_viewer(), None)
         self.a_show = self._act(tr("▶  Slideshow"), self.start_slideshow, "F5")
-        self.a_show_here = self._act(tr("▶  Slideshow su questo elemento"), self.slideshow_on_item)
-        self.a_rename = self._act(tr("Rinomina in blocco…"), self.batch_rename, "F2")
+        self.a_show.setShortcuts([QKeySequence("F5"), QKeySequence("Ctrl+S")])
+        self.a_dual = self._act(tr("Slideshow di 2 cartelle affiancate…"), self.dual_slideshow, "Shift+F5")
+        self.a_rename = self._act(tr("Rinomina in blocco…"), self.batch_rename, "Ctrl+F2")
+        self.a_rename1 = self._act(tr("Rinomina"), self.rename_item, "F2")
+        self.a_cut = self._act(tr("Taglia"), lambda: self.to_clipboard(True), "Ctrl+X")
+        self.a_copyclip = self._act(tr("Copia"), lambda: self.to_clipboard(False), "Ctrl+C")
+        self.a_paste = self._act(tr("Incolla"), self.paste, "Ctrl+V")
+        self.a_newdir = self._act(tr("Nuova cartella…"), self.make_folder, "Ctrl+Shift+N")
+        self.a_open_def = self._act(tr("Programma predefinito"), lambda: self._each_file(fileops.open_default))
+        self.a_open_with = self._act(tr("Scegli un programma…"), lambda: self._each_file(fileops.open_with, 1))
+        self.a_paint = self._act(tr("Modifica con Paint"), lambda: self._each_file(fileops.edit_with_paint))
+        self.a_wall = self._act(tr("Imposta come sfondo del desktop"), self.set_wallpaper)
+        self.a_print = self._act(tr("Stampa…"), self.print_selected, "Ctrl+P")
+        self.a_copypath = self._act(tr("Copia percorso"), self.copy_paths)
+        self.a_props = self._act(tr("Proprietà"), self.properties, "Alt+Return")
         self.a_convert = self._act(tr("Converti formato…"), self.batch_convert, "Ctrl+Shift+C")
         self.a_copy = self._act(tr("Copia in…"), lambda: self.batch_copy(False), "Ctrl+Shift+K")
         self.a_move = self._act(tr("Sposta in…"), lambda: self.batch_copy(True), "Ctrl+Shift+M")
@@ -166,7 +188,8 @@ class BrowserWindow(QMainWindow):
         self.a_help = self._act(tr("Scorciatoie da tastiera"), self.show_help, "F1")
         self.a_about = self._act(tr("Informazioni su {app}…", app=APP_NAME), self.show_about)
         self.a_quit = self._act(tr("Esci"), self.close, "Ctrl+Q")
-        for a in (self.a_delete, self.a_selall):
+        for a in (self.a_delete, self.a_selall, self.a_cut, self.a_copyclip, self.a_paste,
+                  self.a_rename1, self.a_props):
             a.setShortcutContext(Qt.ShortcutContext.WidgetShortcut)
             self.view.addAction(a)
         bk = self._act("", self.go_up, "Backspace")
@@ -206,8 +229,11 @@ class BrowserWindow(QMainWindow):
         self.ck_random = QCheckBox(tr("Casuale"))
         self.ck_loop = QCheckBox(tr("Ripeti"))
         self.ck_sub = QCheckBox(tr("Includi sottocartelle"))
+        self.ck_pair = QCheckBox(tr("2 affiancate"))
+        self.ck_pair.setToolTip(tr("Mostra due immagini alla volta, una accanto all'altra: "
+                                   "1-2, poi 3-4, 5-6… (nello slideshow anche con il tasto D)"))
         for ck, key, default in ((self.ck_random, "random", False), (self.ck_loop, "loop", True),
-                                 (self.ck_sub, "subfolders", False)):
+                                 (self.ck_sub, "subfolders", False), (self.ck_pair, "pair", False)):
             ck.setChecked(s.value(f"slideshow/{key}", default, type=bool))
             ck.toggled.connect(lambda v, k=key: s.setValue(f"slideshow/{k}", v))
             st.addWidget(QLabel(" "))
@@ -241,17 +267,29 @@ class BrowserWindow(QMainWindow):
         mb = self.menuBar()
         m = mb.addMenu(tr("&File"))
         m.addAction(self.a_open_dir)
+        m.addAction(self.a_newdir)
         m.addAction(self.a_explorer)
+        m.addSeparator()
+        m.addAction(self.a_print)
+        m.addAction(self.a_props)
         m.addSeparator()
         m.addAction(self.a_quit)
         m = mb.addMenu(tr("&Modifica"))
+        for a in (self.a_cut, self.a_copyclip, self.a_paste):
+            m.addAction(a)
+        m.addSeparator()
         m.addAction(self.a_selall)
         m.addSeparator()
-        for a in (self.a_rename, self.a_convert, self.a_copy, self.a_move, self.a_delete):
+        for a in (self.a_rename1, self.a_rename, self.a_convert, self.a_copy, self.a_move,
+                  self.a_delete):
             m.addAction(a)
+        m.addSeparator()
+        m.addAction(self.a_copypath)
+        m.addAction(self.a_wall)
         m = mb.addMenu(tr("&Visualizza"))
         m.addAction(self.a_view)
         m.addAction(self.a_show)
+        m.addAction(self.a_dual)
         m.addSeparator()
         m.addAction(self.a_refresh)
         m = mb.addMenu(tr("&Strumenti"))
@@ -271,29 +309,99 @@ class BrowserWindow(QMainWindow):
         m.addSeparator()
         m.addAction(self.a_about)
 
+    def _add(self, menu, action, enabled=True):
+        """Aggiunge un'azione al menu abilitandola solo se ha senso qui; dopo la chiusura
+        del menu torna abilitata, così le scorciatoie da tastiera continuano a funzionare."""
+        if not enabled:
+            action.setEnabled(False)
+            self._touched.append(action)
+        menu.addAction(action)
+
+    def _exec_menu(self, m, pos):
+        try:
+            m.exec(self.view.viewport().mapToGlobal(pos))
+        finally:
+            for a in self._touched:
+                a.setEnabled(True)
+            self._touched = []
+
     def _context_menu(self, pos):
-        if not self.view.indexAt(pos).isValid():
+        on_item = self.view.indexAt(pos).isValid()
+        if not on_item:
             self.view.clearSelection()
+        inside = bool(self.folder and is_archive(self.folder))   # dentro un CBZ/ZIP
+        rows = self.selected_rows()
+        files = self.selected_paths()
+        dirs = self.selected_folders()
+        can_paste = not inside and bool(self.folder) and not unc_server(self.folder) \
+            and fileops.clipboard_has_files()
         m = QMenu(self)
-        has_any = bool(self.selected_rows())
-        has_img = bool(self.selected_paths())
-        one_dir = len(self.selected_rows()) == 1 and bool(self.selected_folders())
-        m.addAction(self.a_view).setEnabled(has_any)
-        if one_dir:
-            # cartella o archivio CBZ/ZIP: slideshow solo su quello
-            name = os.path.basename(self.selected_folders()[0])
-            self.a_show_here.setText(tr("▶  Slideshow su «{name}»", name=name))
-            m.addAction(self.a_show_here)
+        self._touched = []
+
+        if not rows:
+            # clic sullo spazio vuoto: comandi sulla cartella corrente
+            self._add(m, self.a_paste, can_paste)
+            self._add(m, self.a_newdir, not inside and bool(self.folder))
+            m.addSeparator()
+            m.addAction(self.a_show)
+            m.addAction(self.a_selall)
+            sm = m.addMenu(tr("Ordina per"))
+            for i, name in enumerate(sort_names()):
+                a = sm.addAction(name)
+                a.setCheckable(True)
+                a.setChecked(self.cb_sort.currentIndex() == i)
+                a.triggered.connect(lambda _=False, i=i: self.cb_sort.setCurrentIndex(i))
+            sm.addSeparator()
+            a = sm.addAction(tr("Decrescente"))
+            a.setCheckable(True)
+            a.setChecked(self.ck_rev.isChecked())
+            a.toggled.connect(self.ck_rev.setChecked)
+            m.addAction(self.a_refresh)
+            m.addSeparator()
+            m.addAction(self.a_explorer)
+            self._add(m, self.a_props, bool(self.folder) and not inside)
+            self._exec_menu(m, pos)
+            return
+
+        one = len(rows) == 1
+        m.addAction(self.a_view)
         m.addAction(self.a_show)
+        if len(dirs) == 2 and len(rows) == 2:
+            m.addAction(self.a_dual)
         m.addSeparator()
-        for a in (self.a_rename, self.a_convert):
-            m.addAction(a).setEnabled(has_img or (a is self.a_rename and self._renamable_archives()))
-        for a in (self.a_copy, self.a_move, self.a_delete):
-            m.addAction(a).setEnabled(has_any)
+
+        om = m.addMenu(tr("Apri con"))
+        om.setEnabled(bool(files) and not inside)
+        om.addAction(self.a_open_def)
+        om.addAction(self.a_open_with)
+        om.addAction(self.a_paint)
+        bm = m.addMenu(tr("Elaborazione in blocco"))
+        self._add(bm, self.a_rename, not inside and bool(files or self._renamable_archives()))
+        self._add(bm, self.a_convert, not inside and bool(files))
+        self._add(m, self.a_wall, one and bool(files))
+        m.addSeparator()
+
+        self._add(m, self.a_cut, not inside)
+        self._add(m, self.a_copyclip, not inside)
+        if one and dirs and not inside and not is_archive(dirs[0]):
+            self.a_paste.setText(tr("Incolla nella cartella"))
+        else:
+            self.a_paste.setText(tr("Incolla"))
+        self._add(m, self.a_paste, can_paste)
+        self._add(m, self.a_delete, not inside)
+        self._add(m, self.a_rename1, not inside)
+        m.addSeparator()
+        self._add(m, self.a_copy, not inside)
+        self._add(m, self.a_move, not inside)
+        m.addSeparator()
+        self._add(m, self.a_print, bool(files))
         m.addSeparator()
         m.addAction(self.a_explorer)
-        m.addAction(self.a_refresh)
-        m.exec(self.view.viewport().mapToGlobal(pos))
+        m.addAction(self.a_copypath)
+        m.addSeparator()
+        self._add(m, self.a_props, one)
+        self._exec_menu(m, pos)
+        self.a_paste.setText(tr("Incolla"))
 
     def _renamable_archives(self):
         return [p for p in self.selected_folders() if is_archive(p) and os.path.isfile(p)]
@@ -576,23 +684,12 @@ class BrowserWindow(QMainWindow):
             return
         self.app.open_viewer(nav, slideshow=True)
 
-    def slideshow_on_item(self):
-        """Tasto destro su una cartella o un archivio: slideshow solo su quello."""
+    def dual_slideshow(self):
+        """Due cartelle (o archivi) affiancate: preselezionate se ne hai scelte due."""
         dirs = self.selected_folders()
-        if not dirs:
-            return
-        k, r = self._sort_key()
-        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
-        try:
-            nav = Navigator(self.folder, folders=self._expand(dirs[:1], self.ck_sub.isChecked()),
-                            shuffle=self.ck_random.isChecked(), loop=self.ck_loop.isChecked(),
-                            sort=k, reverse=r)
-        finally:
-            QApplication.restoreOverrideCursor()
-        if nav.current() is None:
-            QMessageBox.information(self, tr("Slideshow"), tr("Nessuna immagine trovata."))
-            return
-        self.app.open_viewer(nav, slideshow=True)
+        left = dirs[0] if dirs else (self.folder if self.folder and has_images(self.folder) else "")
+        right = dirs[1] if len(dirs) > 1 else ""
+        self.app.open_dual(left, right, self)
 
     _expand = staticmethod(expand_folders)
 
@@ -616,6 +713,83 @@ class BrowserWindow(QMainWindow):
         paths = self._targets(folders_ok=True)
         if paths and batch.delete_dialog(self, paths):
             self.reload()
+
+    # ------------------------------------------------- comandi del menu contestuale
+    def _real_selection(self):
+        """Elementi selezionati utilizzabili per operazioni sui file (non dentro un archivio)."""
+        if self.folder and is_archive(self.folder):
+            return []
+        return self.selected_all()
+
+    def rename_item(self):
+        sel = self._real_selection()
+        if len(sel) > 1:
+            self.batch_rename()
+            return
+        if not sel:
+            return
+        new = fileops.rename_single(self, sel[0])
+        if new:
+            self.reload()
+            self.select_paths([new])
+
+    def to_clipboard(self, cut):
+        sel = self._real_selection()
+        if sel:
+            fileops.clipboard_set(sel, cut)
+            self.statusBar().showMessage(
+                (tr("Tagliati: {n}", n=len(sel)) if cut else tr("Copiati negli appunti: {n}", n=len(sel))), 3000)
+
+    def paste(self):
+        if not self.folder or is_archive(self.folder) or unc_server(self.folder):
+            return
+        paths, cut = fileops.clipboard_get()
+        if not paths:
+            return
+        dest = self.folder
+        dirs = self.selected_folders()
+        if self.a_paste.text() == tr("Incolla nella cartella") and len(dirs) == 1:
+            dest = dirs[0]
+        if batch.transfer(self, paths, dest, move=cut):
+            if cut:
+                QApplication.clipboard().clear()
+            self.reload()
+            if samepath(dest, self.folder):
+                self.select_paths([os.path.join(dest, os.path.basename(p)) for p in paths])
+
+    def make_folder(self):
+        if not self.folder or is_archive(self.folder) or unc_server(self.folder):
+            return
+        new = fileops.new_folder(self, self.folder)
+        if new:
+            self.reload()
+            self.select_paths([new])
+
+    def _each_file(self, fn, limit=20):
+        files = [p for p in self.selected_paths() if not is_archive(self.folder or "")]
+        for p in files[:limit]:
+            fn(p)
+
+    def set_wallpaper(self):
+        files = self.selected_paths()
+        if files:
+            fileops.set_wallpaper(self, files[0])
+
+    def print_selected(self):
+        files = self.selected_paths()
+        if files:
+            fileops.print_images(self, files)
+
+    def copy_paths(self):
+        sel = self.selected_all() or ([self.folder] if self.folder else [])
+        if sel:
+            fileops.copy_as_path([p.replace("|", os.sep) for p in sel])
+
+    def properties(self):
+        sel = self.selected_all()
+        target = sel[0] if len(sel) == 1 else (self.folder if not sel else None)
+        if target:
+            fileops.show_properties(self, target)
 
     def reveal_in_explorer(self):
         sel = self.selected_all()
