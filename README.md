@@ -10,6 +10,10 @@ a slideshow that jumps from one folder to the next, CBZ/ZIP comic archives and b
 
 ---
 
+![Demo](docs/demo.jpg)
+
+---
+
 ## Features
 
 - **Browser** with folder tree and thumbnail grid (thumbnails cached on disk), natural sort by name, date or size.
@@ -22,7 +26,7 @@ a slideshow that jumps from one folder to the next, CBZ/ZIP comic archives and b
 - **Copy / move / delete** (to the Recycle Bin) of files and folders, **cut / copy / paste** that also works with Explorer.
 - **Right-click menu** in the browser and in the viewer, modelled on ACDSee: open with, batch, wallpaper, rename, print, copy as path, properties…
 - Optional **Explorer context menu**: right-click a folder, an archive or an image in Windows Explorer to start a slideshow, rename or convert.
-- **Network shares**: type `\\192.168.0.2` to list the shared folders of a computer.
+- **Network shares**: type (for example) `\\192.168.0.2` to list the shared folders of a computer.
 - **English and Italian** interface, selectable from the menu.
 
 ## Requirements

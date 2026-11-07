@@ -11,6 +11,10 @@ e operazioni in blocco.<br>
 
 ---
 
+![Demo](docs/demo.jpg)
+
+---
+
 ## Funzioni
 
 - **Browser** con albero delle cartelle e griglia di miniature (in cache su disco), ordinamento naturale per nome, data o dimensione.
@@ -23,7 +27,7 @@ e operazioni in blocco.<br>
 - **Copia / sposta / elimina** (nel Cestino) di file e cartelle, **taglia / copia / incolla** che funziona anche con Esplora risorse.
 - **Menu del tasto destro** nel browser e nel visualizzatore, sul modello di ACDSee: apri con, elaborazione in blocco, sfondo del desktop, rinomina, stampa, copia percorso, proprietà…
 - **Menu contestuale di Esplora risorse** (facoltativo): clic destro su una cartella, un archivio o un'immagine in Esplora risorse per avviare lo slideshow, rinominare o convertire.
-- **Cartelle di rete**: scrivi `\\192.168.0.2` per vedere le cartelle condivise di un computer.
+- **Cartelle di rete**: scrivi (per esempio) `\\192.168.0.2` per vedere le cartelle condivise di un computer.
 - Interfaccia in **italiano e inglese**, selezionabile dal menu.
 
 ## Requisiti
