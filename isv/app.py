@@ -3,7 +3,7 @@ import os
 import sys
 
 from PySide6.QtCore import QSettings, QStandardPaths, Qt
-from PySide6.QtGui import QColor, QIcon, QImageReader, QPalette
+from PySide6.QtGui import QIcon, QImageReader
 from PySide6.QtWidgets import QApplication
 
 from . import APP_ID, APP_NAME, ORG_NAME, __version__, i18n
@@ -11,29 +11,6 @@ from .archive import is_archive, is_virtual, parent_of
 from .utils import collect_image_folders, has_images, is_image
 
 VERSION = __version__
-
-
-def dark_palette():
-    p = QPalette()
-    C = QPalette.ColorRole
-    base, win, text = QColor(30, 30, 32), QColor(42, 42, 45), QColor(225, 225, 225)
-    p.setColor(C.Window, win)
-    p.setColor(C.WindowText, text)
-    p.setColor(C.Base, base)
-    p.setColor(C.AlternateBase, win)
-    p.setColor(C.ToolTipBase, QColor(55, 55, 58))
-    p.setColor(C.ToolTipText, text)
-    p.setColor(C.Text, text)
-    p.setColor(C.Button, win)
-    p.setColor(C.ButtonText, text)
-    p.setColor(C.BrightText, QColor(255, 80, 80))
-    p.setColor(C.Highlight, QColor(52, 120, 200))
-    p.setColor(C.HighlightedText, QColor(255, 255, 255))
-    p.setColor(C.Link, QColor(90, 160, 240))
-    p.setColor(QPalette.ColorGroup.Disabled, C.Text, QColor(120, 120, 120))
-    p.setColor(QPalette.ColorGroup.Disabled, C.ButtonText, QColor(120, 120, 120))
-    p.setColor(QPalette.ColorGroup.Disabled, C.WindowText, QColor(120, 120, 120))
-    return p
 
 
 def open_settings():
@@ -201,7 +178,6 @@ def main(argv=None):
     qapp.setOrganizationName(ORG_NAME)
     qapp.setApplicationVersion(VERSION)
     qapp.setStyle("Fusion")
-    qapp.setPalette(dark_palette())
     icon = os.path.join(os.path.dirname(os.path.abspath(__file__)), "icon.ico")
     if os.path.exists(icon):
         qapp.setWindowIcon(QIcon(icon))
@@ -209,6 +185,8 @@ def main(argv=None):
 
     settings = open_settings()
     i18n.init(settings)  # prima di creare qualsiasi finestra
+    from . import theme
+    theme.init(qapp, settings)  # chiaro / scuro / automatico
 
     args = argv[1:]
     action = None

@@ -19,6 +19,7 @@ a slideshow that jumps from one folder to the next, CBZ/ZIP comic archives and b
 - **Browser** with folder tree and thumbnail grid (thumbnails cached on disk), natural sort by name, date or size.
 - **Viewer** with fit-to-window / 100% / zoom, EXIF auto-rotation and animated GIF/WebP.
 - **Slideshow** with interval, random order, loop and subfolders; **↓ / ↑ jump to the next / previous folder** while it runs.
+- **Image info and EXIF**: camera, lens, shutter speed, aperture, ISO, date taken, GPS location on a map and all tags; without EXIF it still shows the file and image details.
 - **Two images side by side** (1-2, 3-4…) and a **side-by-side slideshow of two different folders**.
 - **CBZ / ZIP archives** shown as folders with their cover, readable like comics.
 - **Batch rename** modelled on ACDSee: template, search and replace, case change, insert text, remove text, strip spaces, with live preview.
@@ -34,6 +35,7 @@ a slideshow that jumps from one folder to the next, CBZ/ZIP comic archives and b
 - Windows 10 or 11 (it also runs on Linux and macOS, without the Windows-only parts)
 - Python 3.10 or newer
 - [PySide6](https://pypi.org/project/PySide6/) 6.5 or newer
+- [Pillow](https://pypi.org/project/Pillow/), optional, to read EXIF data (if it is missing, the *Image info* window offers to install it)
 
 ## Installation
 
@@ -90,7 +92,7 @@ From then on, double-clicking a photo opens the viewer, and **Enter** takes you 
   - *Batch* ▸ batch rename, convert format
   - *Set as desktop wallpaper*
   - *Cut*, *Copy*, *Paste* (into the current folder, or *Paste into folder* on a folder), *Delete*, *Rename*
-  - *Copy to…*, *Move to…*, *Print…*, *Show in Explorer*, *Copy as path*, *Properties* (the Windows properties window)
+  - *Copy to…*, *Move to…*, *Print…*, *Show in Explorer*, *Copy as path*, *Image info (EXIF)* on an image, Windows *Properties* on a folder
 
   On an empty area: *Paste*, *New folder…*, *Slideshow*, *Select all*, *Sort by* ▸, *Refresh*, *Show in Explorer*, *Properties* of the folder. Cut/copy/paste use the Windows clipboard, so you can copy in the program and paste in Explorer, or the other way round. Inside an archive only the commands that do not change files are available.
 - **ZIP / CBZ archives** appear as light-blue folders with their cover. Double-click to open them, or select them and start the slideshow: the folder jump (↓/↑) and *Include subfolders* treat them like folders. Images inside the archive's subfolders are shown in order. Single images inside an archive cannot be renamed or deleted; RAR/CBR and 7Z are not supported.
@@ -108,7 +110,7 @@ From then on, double-clicking a photo opens the viewer, and **Enter** takes you 
 | Ctrl+Shift+N | New folder |
 | Ctrl+Shift+K / M | Copy to… / Move to… |
 | Ctrl+P | Print |
-| Alt+Enter | Properties |
+| Alt+Enter | Image info and EXIF (also *View → Image Info*); on a folder, Windows Properties |
 | Del | Move to the Recycle Bin |
 | Backspace, Alt+↑ / Alt+← | Parent folder / Back |
 | F1 | List of shortcuts |
@@ -133,7 +135,7 @@ The options are on the second toolbar: **Interval**, **Random**, **Loop**, **Inc
 | Space / P | Start or stop the slideshow (also in the normal viewer) |
 | S | Stop the slideshow |
 | O | Options: folder name on/off, colours, control bar |
-| + / − | Longer / shorter interval |
+| + / − | Longer / shorter interval (also while the slideshow is running) |
 | Home / End | First / last image of the folder |
 | F, F11, double-click | Full screen |
 | Z, * | Fit to window ↔ 100% |
@@ -142,12 +144,23 @@ The options are on the second toolbar: **Interval**, **Random**, **Loop**, **Inc
 | Del | Move to the Recycle Bin |
 | F2 | Rename the image |
 | Ctrl+C | Copy the image to the clipboard |
-| Enter | Back to the browser on this image |
+| Enter | Back to the browser on this image (viewer only: does nothing in the slideshow) |
 | D | Two images side by side on/off |
 | M | Manga mode (with 2 side by side) on/off |
-| Esc | Close |
+| Esc | Slideshow: exit and go back to the browser. Viewer: close |
 
-Moving the mouse shows a **control bar** at the bottom with *Start/Stop*, previous/next image and folder, interval and *Options*. While the slideshow is stopped, a "Paused" badge stays in the top right corner. Right-clicking the image opens a menu with all the commands, plus copy image, copy file, open with, rename, set as wallpaper, print, show in Explorer, copy as path and properties.
+Moving the mouse shows a **control bar** at the bottom with *Start/Stop*, previous/next image and folder, interval and *Options*. While the slideshow is stopped, a "Paused" badge in the top right corner appears with the bar when you move the mouse and hides with it. Right-clicking the image opens a menu with all the commands, plus copy image, copy file, open with, rename, set as wallpaper, print, show in Explorer, copy as path and image info (EXIF, also with Alt+Enter).
+
+### Image info (EXIF)
+
+*View → Image Info (EXIF)…*, right-clicking an image or **Alt+Enter** (in the browser and in the viewer) open a window with a preview and:
+
+- **File**: name, folder (or archive), size, modified and created dates.
+- **Image**: format, pixel dimensions, megapixels, colour mode, DPI, colour profile, animation frames.
+- **Shot (EXIF)**: camera, lens, date taken, shutter speed, aperture, ISO, focal length, exposure compensation, flash, orientation, software, author, copyright.
+- **GPS location** with a *Show on map* button (OpenStreetMap), and the full list of **all EXIF tags**.
+
+If the image has no EXIF data the window says so and still shows the other details. *Copy* puts everything (or the selected rows) on the clipboard; *Windows properties…* still opens the classic window. During a slideshow, playback pauses while the window is open.
 
 ### Two images side by side
 
@@ -208,6 +221,10 @@ Invalid names for Windows (characters `< > : " / \ | ? *`, trailing dot or space
 - **Convert**: saves as JPEG, PNG, WebP, BMP or TIFF, with adjustable quality and long-side reduction, into a subfolder, another folder or next to the originals. Optionally the originals are moved to the Recycle Bin once converted (only those converted without errors). Photos are straightened according to EXIF, but EXIF data is not copied.
 - **Copy / Move** (whole folders too): if a file already exists in the destination you can add a number to the name, overwrite it or skip it.
 - **Delete**: moves files or folders to the Recycle Bin, so they can be recovered.
+
+## Light / dark theme
+
+*Tools → Theme*: **Automatic** (follows the Windows light or dark mode, even while the program is open), **Light** or **Dark**. The change applies immediately. The viewer and the slideshow always keep a black background.
 
 ## Language
 

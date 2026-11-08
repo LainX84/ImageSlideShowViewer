@@ -35,7 +35,7 @@ def help_html():
         ("<b>Ctrl+X / C / V</b>", tr("taglia / copia / incolla (anche con Esplora risorse)")),
         (tr("<b>Ctrl+Maiusc+N</b>"), tr("nuova cartella")),
         ("<b>Ctrl+P</b>", tr("stampa")),
-        (tr("<b>Alt+Invio</b>"), tr("proprietà")),
+        (tr("<b>Alt+Invio</b>"), tr("informazioni immagine ed EXIF (sulle cartelle: proprietà)")),
         (tr("<b>Ctrl+Maiusc+C</b>"), tr("converti formato")),
         (tr("<b>Canc</b>"), tr("sposta nel Cestino")),
         ("<b>Backspace</b> / Alt+↑", tr("cartella superiore")),
@@ -174,7 +174,8 @@ class BrowserWindow(QMainWindow):
         self.a_wall = self._act(tr("Imposta come sfondo del desktop"), self.set_wallpaper)
         self.a_print = self._act(tr("Stampa…"), self.print_selected, "Ctrl+P")
         self.a_copypath = self._act(tr("Copia percorso"), self.copy_paths)
-        self.a_props = self._act(tr("Proprietà"), self.properties, "Alt+Return")
+        self.a_props = self._act(tr("Proprietà"), self.properties)
+        self.a_info = self._act(tr("Informazioni immagine (EXIF)…"), self.image_info, "Alt+Return")
         self.a_convert = self._act(tr("Converti formato…"), self.batch_convert, "Ctrl+Shift+C")
         self.a_copy = self._act(tr("Copia in…"), lambda: self.batch_copy(False), "Ctrl+Shift+K")
         self.a_move = self._act(tr("Sposta in…"), lambda: self.batch_copy(True), "Ctrl+Shift+M")
@@ -189,7 +190,7 @@ class BrowserWindow(QMainWindow):
         self.a_about = self._act(tr("Informazioni su {app}…", app=APP_NAME), self.show_about)
         self.a_quit = self._act(tr("Esci"), self.close, "Ctrl+Q")
         for a in (self.a_delete, self.a_selall, self.a_cut, self.a_copyclip, self.a_paste,
-                  self.a_rename1, self.a_props):
+                  self.a_rename1, self.a_info):
             a.setShortcutContext(Qt.ShortcutContext.WidgetShortcut)
             self.view.addAction(a)
         bk = self._act("", self.go_up, "Backspace")
@@ -298,6 +299,8 @@ class BrowserWindow(QMainWindow):
         m.addAction(self.a_show)
         m.addAction(self.a_dual)
         m.addSeparator()
+        m.addAction(self.a_info)
+        m.addSeparator()
         m.addAction(self.a_refresh)
         m = mb.addMenu(tr("&Strumenti"))
         m.addAction(self.a_options)
@@ -311,6 +314,16 @@ class BrowserWindow(QMainWindow):
             a.setCheckable(True)
             a.setChecked(code == cur)
             a.triggered.connect(lambda _=False, c=code: self.set_language(c))
+        tm = m.addMenu(tr("Tema"))
+        cur = self.settings.value("app/theme", "auto")
+        self._theme_actions = {}
+        for code, name in (("auto", tr("Automatico (come Windows)")),
+                           ("light", tr("Chiaro")), ("dark", tr("Scuro"))):
+            a = tm.addAction(name)
+            a.setCheckable(True)
+            a.setChecked(code == cur)
+            a.triggered.connect(lambda _=False, c=code: self.set_theme(c))
+            self._theme_actions[code] = a
         m = mb.addMenu(tr("&Aiuto"))
         m.addAction(self.a_help)
         m.addSeparator()
@@ -406,7 +419,10 @@ class BrowserWindow(QMainWindow):
         m.addAction(self.a_explorer)
         m.addAction(self.a_copypath)
         m.addSeparator()
-        self._add(m, self.a_props, one)
+        if one and files:
+            m.addAction(self.a_info)        # immagine: EXIF e informazioni al posto delle proprietà
+        else:
+            self._add(m, self.a_props, one)
         self._exec_menu(m, pos)
         self.a_paste.setText(tr("Incolla"))
 
@@ -798,6 +814,15 @@ class BrowserWindow(QMainWindow):
         if target:
             fileops.show_properties(self, target)
 
+    def image_info(self):
+        """Informazioni ed EXIF dell'immagine selezionata; su una cartella, le proprietà."""
+        files = self.selected_paths()
+        if len(files) == 1 and len(self.selected_all()) == 1:
+            from .imageinfo import show_image_info
+            show_image_info(self, files[0])
+        else:
+            self.properties()
+
     def reveal_in_explorer(self):
         sel = self.selected_all()
         if sel:
@@ -833,6 +858,15 @@ class BrowserWindow(QMainWindow):
         except OSError as e:
             QMessageBox.warning(self, APP_NAME, tr("Operazione non riuscita: {err}", err=e))
         self.a_shell.setChecked(shell.is_installed())
+
+    def set_theme(self, code):
+        """Cambia tema subito, senza riavviare."""
+        from PySide6.QtWidgets import QApplication
+        from . import theme
+        self.settings.setValue("app/theme", code)
+        theme.apply(QApplication.instance(), code)
+        for c, a in self._theme_actions.items():
+            a.setChecked(c == code)
 
     def set_language(self, code):
         if code == self.settings.value("app/language", "auto"):

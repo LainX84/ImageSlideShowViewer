@@ -738,8 +738,12 @@ class RenameDialog(QDialog):
         self._pairs, self._blocked = rows, blocked
         shown = rows[:3000]
         self.table.setRowCount(len(shown))
-        red, orange, gray, blue = (QBrush(QColor(225, 90, 90)), QBrush(QColor(230, 160, 60)),
-                                   QBrush(QColor(140, 140, 140)), QBrush(QColor(110, 170, 240)))
+        from .theme import is_dark
+        if is_dark():
+            cols = ((225, 90, 90), (230, 160, 60), (140, 140, 140), (110, 170, 240))
+        else:
+            cols = ((200, 40, 40), (190, 110, 0), (120, 120, 120), (30, 100, 200))
+        red, orange, gray, blue = (QBrush(QColor(*c)) for c in cols)
         color = {R.INVALID: red, R.CONFLICT: red, R.SKIP_CONFLICT: orange, R.SKIP_EXT: orange,
                  R.SAME: gray, R.NUMBERED: blue}
         for i, (o, n, st, det) in enumerate(shown):
@@ -760,7 +764,7 @@ class RenameDialog(QDialog):
         ok = self.buttons.button(QDialogButtonBox.StandardButton.Ok)
         ok.setEnabled(not blocked and todo > 0)
         if blocked:
-            self.status.setText("<span style='color:#e06060'>" +
+            self.status.setText(f"<span style='color:{'#e06060' if is_dark() else '#c02828'}'>" +
                                 tr("{n} nomi non validi o già esistenti (in rosso): correggi le "
                                    "operazioni oppure scegli cosa fare in «Avanzate».", n=bad) + "</span>")
         else:

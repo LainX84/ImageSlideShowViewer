@@ -1,7 +1,7 @@
 @echo off
 rem Builds dist\ImageSlideShowViewer\ImageSlideShowViewer.exe with PyInstaller.
 cd /d "%~dp0"
-echo Installing / updating PySide6 and PyInstaller...
+echo Installing / updating PySide6, Pillow and PyInstaller...
 python -m pip install --upgrade -r requirements.txt pyinstaller || (pause & exit /b 1)
 python -m PyInstaller --noconfirm --clean --windowed ^
   --name ImageSlideShowViewer ^

@@ -20,6 +20,7 @@ e operazioni in blocco.<br>
 - **Browser** con albero delle cartelle e griglia di miniature (in cache su disco), ordinamento naturale per nome, data o dimensione.
 - **Visualizzatore** con adatta alla finestra / 100% / zoom, rotazione automatica secondo l'EXIF, GIF e WebP animate.
 - **Slideshow** con intervallo, ordine casuale, ripetizione e sottocartelle; **↓ / ↑ saltano alla cartella successiva / precedente** mentre scorre.
+- **Informazioni immagine ed EXIF**: fotocamera, obiettivo, tempi, diaframma, ISO, data dello scatto, posizione GPS sulla mappa e tutti i tag; senza EXIF mostra comunque i dati del file e dell'immagine.
 - **Due immagini affiancate** (1-2, 3-4…) e **slideshow di due cartelle diverse affiancate**.
 - **Archivi CBZ / ZIP** mostrati come cartelle con la copertina, da sfogliare come fumetti.
 - **Rinomina in blocco** sul modello di ACDSee: modello, cerca e sostituisci, maiuscole/minuscole, inserisci testo, rimuovi testo, spazi, con anteprima immediata.
@@ -35,6 +36,7 @@ e operazioni in blocco.<br>
 - Windows 10 o 11 (funziona anche su Linux e macOS, senza le parti specifiche di Windows)
 - Python 3.10 o più recente
 - [PySide6](https://pypi.org/project/PySide6/) 6.5 o più recente
+- [Pillow](https://pypi.org/project/Pillow/), facoltativa, per leggere i dati EXIF (se manca, la finestra *Informazioni immagine* propone di installarla)
 
 ## Installazione
 
@@ -91,7 +93,7 @@ Da quel momento, con un doppio clic su una foto si apre il visualizzatore. **Inv
   - *Elaborazione in blocco* ▸ rinomina in blocco, converti formato
   - *Imposta come sfondo del desktop*
   - *Taglia*, *Copia*, *Incolla* (nella cartella corrente, oppure *Incolla nella cartella* su una cartella), *Elimina*, *Rinomina*
-  - *Copia in…*, *Sposta in…*, *Stampa…*, *Mostra in Esplora risorse*, *Copia percorso*, *Proprietà* (la finestra delle proprietà di Windows)
+  - *Copia in…*, *Sposta in…*, *Stampa…*, *Mostra in Esplora risorse*, *Copia percorso*, *Informazioni immagine (EXIF)* su un'immagine, *Proprietà* di Windows su una cartella
 
   Sullo spazio vuoto: *Incolla*, *Nuova cartella…*, *Slideshow*, *Seleziona tutto*, *Ordina per* ▸, *Aggiorna*, *Mostra in Esplora risorse*, *Proprietà* della cartella. Taglia/copia/incolla usano gli appunti di Windows, quindi puoi copiare nel programma e incollare in Esplora risorse, o viceversa. Dentro un archivio restano solo i comandi che non modificano i file.
 - **Archivi ZIP / CBZ:** compaiono come cartelle (in azzurro) con la copertina. Doppio clic per entrarci, oppure selezionali e avvia lo slideshow: sono trattati come cartelle anche dal salto cartella (↓/↑) e da "Includi sottocartelle". Le immagini dentro le sottocartelle dell'archivio vengono mostrate in ordine. Dentro un archivio non si possono rinominare né eliminare singole immagini; RAR/CBR e 7Z non sono supportati.
@@ -109,7 +111,7 @@ Da quel momento, con un doppio clic su una foto si apre il visualizzatore. **Inv
 | Ctrl+Maiusc+N | Nuova cartella |
 | Ctrl+Maiusc+K / M | Copia in… / Sposta in… |
 | Ctrl+P | Stampa |
-| Alt+Invio | Proprietà |
+| Alt+Invio | Informazioni immagine ed EXIF (anche da *Visualizza → Informazioni immagine*); su una cartella, Proprietà di Windows |
 | Canc | Sposta nel Cestino |
 | Backspace, Alt+↑ / Alt+← | Cartella superiore / Indietro |
 | F1 | Elenco delle scorciatoie |
@@ -134,7 +136,7 @@ Le opzioni sono nella seconda barra: **Intervallo**, **Casuale**, **Ripeti**, **
 | Spazio / P | Avvia o ferma lo slideshow (anche nel visualizzatore normale) |
 | S | Ferma lo slideshow |
 | O | Opzioni: nome cartella sì/no, colori, barra comandi |
-| + / − | Intervallo più lungo / più corto |
+| + / − | Intervallo più lungo / più corto (anche a slideshow in corso) |
 | Home / Fine | Prima / ultima immagine della cartella |
 | F, F11, doppio clic | Schermo intero |
 | Z, * | Adatta alla finestra ↔ 100% |
@@ -143,12 +145,23 @@ Le opzioni sono nella seconda barra: **Intervallo**, **Casuale**, **Ripeti**, **
 | Canc | Sposta nel Cestino |
 | F2 | Rinomina l'immagine |
 | Ctrl+C | Copia l'immagine negli appunti |
-| Invio | Torna al browser su questa immagine |
+| Invio | Torna al browser su questa immagine (solo nel visualizzatore: nello slideshow non fa nulla) |
 | D | Due immagini affiancate sì/no |
 | M | Modalità manga (con 2 affiancate) sì/no |
-| Esc | Chiudi |
+| Esc | Nello slideshow: esci e torna al browser. Nel visualizzatore: chiudi |
 
-Muovendo il mouse compare in basso una **barra dei comandi** con *Avvia/Ferma*, immagine e cartella precedente/successiva, intervallo e *Opzioni*. Mentre lo slideshow è fermo, in alto a destra resta visibile l'indicatore "In pausa". Il tasto destro sull'immagine apre un menu con tutti i comandi, più copia immagine, copia file, apri con, rinomina, imposta come sfondo, stampa, mostra in Esplora risorse, copia percorso e proprietà.
+Muovendo il mouse compare in basso una **barra dei comandi** con *Avvia/Ferma*, immagine e cartella precedente/successiva, intervallo e *Opzioni*. Mentre lo slideshow è fermo, l'indicatore "In pausa" in alto a destra compare insieme alla barra quando muovi il mouse e sparisce con lei. Il tasto destro sull'immagine apre un menu con tutti i comandi, più copia immagine, copia file, apri con, rinomina, imposta come sfondo, stampa, mostra in Esplora risorse, copia percorso e informazioni immagine (EXIF, anche con Alt+Invio).
+
+### Informazioni immagine (EXIF)
+
+*Visualizza → Informazioni immagine (EXIF)…*, il tasto destro su un'immagine o **Alt+Invio** (nel browser e nel visualizzatore) aprono una finestra con l'anteprima e:
+
+- **File**: nome, cartella (o archivio), dimensione, date di modifica e creazione.
+- **Immagine**: formato, dimensioni in pixel, megapixel, modalità colore, DPI, profilo colore, fotogrammi delle animazioni.
+- **Scatto (EXIF)**: fotocamera, obiettivo, data dello scatto, tempo, diaframma, ISO, lunghezza focale, compensazione, flash, orientamento, programma usato, autore, copyright.
+- **Posizione GPS** con il pulsante *Mostra sulla mappa* (OpenStreetMap), e l'elenco completo di **tutti i tag EXIF**.
+
+Se l'immagine non ha dati EXIF lo dice e mostra comunque le altre informazioni. *Copia* copia tutto (o le righe selezionate) negli appunti; *Proprietà di Windows…* apre ancora la finestra classica. Durante lo slideshow lo scorrimento si ferma finché la finestra è aperta.
 
 ### Due immagini affiancate
 
@@ -209,6 +222,10 @@ I nomi non validi per Windows (caratteri `< > : " / \ | ? *`, punto o spazio fin
 - **Converti**: salva in JPEG, PNG, WebP, BMP o TIFF, con qualità e riduzione del lato lungo regolabili, in una sottocartella, in un'altra cartella o accanto agli originali. A scelta, dopo la conversione gli originali vengono spostati nel Cestino (solo quelli convertiti senza errori). Le foto vengono raddrizzate secondo l'EXIF, ma i dati EXIF non vengono copiati.
 - **Copia / Sposta** (anche cartelle intere): se un file esiste già nella destinazione, puoi aggiungere un numero al nome, sovrascrivere o saltarlo.
 - **Elimina**: sposta file o cartelle nel Cestino, quindi sono recuperabili.
+
+## Tema chiaro / scuro
+
+*Strumenti → Tema*: **Automatico** (segue il tema chiaro o scuro di Windows, anche mentre il programma è aperto), **Chiaro** o **Scuro**. Il cambio è immediato. Il visualizzatore e lo slideshow restano sempre su fondo nero.
 
 ## Lingua
 

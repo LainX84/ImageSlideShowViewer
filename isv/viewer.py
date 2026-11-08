@@ -13,7 +13,7 @@ from . import APP_NAME
 from .i18n import num, tr
 from .utils import human_size, show_in_explorer
 
-INTERVALS = [0.5, 1, 1.5, 2, 3, 4, 5, 6, 8, 10, 15, 20, 30, 45, 60, 120]
+INTERVALS = [1, 3, 5, 10, 15, 30, 60]
 
 
 def is_animated(path):
@@ -46,6 +46,7 @@ class Canvas(QWidget):
         self.osd = ""
         self.osd_kind = "msg"
         self.paused = False
+        self.badge_on = False   # l'indicatore "In pausa" segue la barra comandi
         from .options import DEFAULTS
         self.style_ = dict(DEFAULTS)
         self._osd_timer = QTimer(self, singleShot=True, interval=1600)
@@ -234,7 +235,7 @@ class Canvas(QWidget):
             p.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter | Qt.TextFlag.TextWordWrap, self.message)
         if self.show_info and self.info_lines:
             self._draw_box(p, self.info_lines, "info")
-        if self.paused and self.style_["osd/pause_badge"]:
+        if self.paused and self.badge_on and self.style_["osd/pause_badge"]:
             self._draw_box(p, ["❚❚  " + tr("In pausa")], "badge")
         if self.osd:
             pos = self.style_["osd/folder_pos"] if self.osd_kind == "folder" else "top"
@@ -312,12 +313,12 @@ class ControlBar(QFrame):
         btn("+", tr("Intervallo più lungo (+)"), lambda: viewer.change_interval(1))
         lay.addSpacing(10)
         btn(tr("Opzioni"), tr("Avvisi, colori, barra comandi (O)"), viewer.open_options)
-        btn("✕", tr("Chiudi (Esc)"), viewer.close)
+        btn("✕", tr("Chiudi"), viewer.close)
         self.hide()
 
     def refresh(self):
         self.play.setText("❚❚ " + tr("Ferma") if self.v.playing else "▶ " + tr("Avvia"))
-        self.interval.setText(self.v._fmt_interval())
+        self.interval.setText(tr("Intervallo") + " " + self.v._fmt_interval())
         self.adjustSize()
         self.place()
 
@@ -655,6 +656,10 @@ class ViewerWindow(QWidget):
             self.timer.start(int(self.interval * 1000))
 
     def _show_bar(self):
+        if not self.canvas.badge_on:
+            self.canvas.badge_on = True
+            self.canvas.update()
+        self.bar_timer.start()
         if not self.canvas.style_["viewer/controls"]:
             return
         self.bar.refresh()
@@ -667,6 +672,8 @@ class ViewerWindow(QWidget):
             self.bar_timer.start()
         else:
             self.bar.hide()
+            self.canvas.badge_on = False
+            self.canvas.update()
 
     def _fmt_interval(self):
         return f"{num(self.interval)} s"
@@ -677,11 +684,14 @@ class ViewerWindow(QWidget):
             nxt = next((v for v in INTERVALS if v > cur + 1e-6), INTERVALS[-1])
         else:
             nxt = next((v for v in reversed(INTERVALS) if v < cur - 1e-6), INTERVALS[0])
-        self.interval = nxt
-        self.settings.setValue("slideshow/interval", nxt)
+        self.set_interval(nxt)
+
+    def set_interval(self, secs):
+        self.interval = secs
+        self.settings.setValue("slideshow/interval", self.interval)
         self.canvas.flash(tr("Intervallo") + f": {self._fmt_interval()}")
         self._update_info()
-        if self.playing:
+        if self.playing:      # lo slideshow continua, con il nuovo tempo
             self.timer.start(int(self.interval * 1000))
 
     def toggle_fullscreen(self):
@@ -750,6 +760,18 @@ class ViewerWindow(QWidget):
         elif was:
             self.timer.start(int(self.interval * 1000))
 
+    def image_info(self):
+        path = self.nav.current()
+        if not path:
+            return
+        was = self.playing
+        self.timer.stop()
+        self.unsetCursor()
+        from .imageinfo import show_image_info
+        show_image_info(self, path, self.canvas.image)
+        if was and self.playing:
+            self.timer.start(int(self.interval * 1000))
+
     def _toggle_folder_osd(self, on):
         self.settings.setValue("osd/folder", on)
         self.apply_options()
@@ -764,7 +786,8 @@ class ViewerWindow(QWidget):
         K = Qt.Key
         ctrl = bool(e.modifiers() & Qt.KeyboardModifier.ControlModifier)
         if k == K.Key_Escape:
-            self.close()
+            # nello slideshow Esc esce e torna al browser; nel visualizzatore chiude
+            self.back_to_browser() if self.slideshow_mode else self.close()
         elif k in (K.Key_Right, K.Key_PageDown) and ctrl:
             self.go_folder(1)
         elif k in (K.Key_Left, K.Key_PageUp) and ctrl:
@@ -797,8 +820,11 @@ class ViewerWindow(QWidget):
             self.open_options()
         elif k in (K.Key_F, K.Key_F11):
             self.toggle_fullscreen()
+        elif k in (K.Key_Return, K.Key_Enter) and e.modifiers() & Qt.KeyboardModifier.AltModifier:
+            self.image_info()
         elif k in (K.Key_Return, K.Key_Enter):
-            self.back_to_browser()
+            if not self.slideshow_mode:     # nello slideshow Invio non fa nulla
+                self.back_to_browser()
         elif k == K.Key_I:
             self.toggle_info()
         elif k in (K.Key_Asterisk, K.Key_Z, K.Key_0):
@@ -907,12 +933,15 @@ class ViewerWindow(QWidget):
                     lambda: show_in_explorer(path.split("|", 1)[0])).setEnabled(bool(path))
         m.addAction(tr("Copia percorso"),
                     lambda: fileops.copy_as_path([path.replace("|", os.sep)])).setEnabled(bool(path))
-        m.addAction(tr("Proprietà"), lambda: fileops.show_properties(self, path, self.canvas.image)) \
-            .setEnabled(bool(path))
+        m.addAction(tr("Informazioni immagine (EXIF)…  (Alt+Invio)"), self.image_info).setEnabled(bool(path))
         m.addSeparator()
         m.addAction(tr("Elimina  (Canc)"), self.delete_current)
-        m.addAction(tr("Torna al browser  (Invio)"), self.back_to_browser)
-        m.addAction(tr("Chiudi  (Esc)"), self.close)
+        if self.slideshow_mode:
+            m.addAction(tr("Esci dallo slideshow  (Esc)"), self.back_to_browser)
+            m.addAction(tr("Chiudi"), self.close)
+        else:
+            m.addAction(tr("Torna al browser  (Invio)"), self.back_to_browser)
+            m.addAction(tr("Chiudi  (Esc)"), self.close)
         m.exec(pos)
 
     def closeEvent(self, e):

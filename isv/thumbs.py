@@ -235,7 +235,9 @@ class ThumbDelegate(QStyledItemDelegate):
             p.drawRoundedRect(r, 6, 6)
         elif hov:
             p.setPen(Qt.PenStyle.NoPen)
-            p.setBrush(QColor(255, 255, 255, 22))
+            c = QColor(option.palette.text().color())
+            c.setAlpha(22)
+            p.setBrush(c)
             p.drawRoundedRect(r, 6, 6)
         s = option.decorationSize.width()
         icon_rect = QRect(r.x() + (r.width() - s) // 2, r.y() + 5, s, s)
