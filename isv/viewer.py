@@ -5,7 +5,7 @@ import time
 from PySide6.QtCore import QSize, Qt, QTimer, Signal
 from PySide6.QtGui import QAction, QActionGroup, QColor, QIcon, QMovie, QPixmap
 from PySide6.QtWidgets import (QFrame, QHBoxLayout, QInputDialog, QLabel, QMenu, QMessageBox,
-                               QToolButton, QVBoxLayout, QWidget)
+                               QSlider, QToolButton, QVBoxLayout, QWidget)
 
 from . import APP_NAME, anim, codecs, gpu, library, orient, shortcuts
 from .archive import is_virtual, parent_of, read_bytes, split, stat_any
@@ -32,6 +32,47 @@ def color_icon(color, size=14):
     return QIcon(pm)
 
 
+class SeekSlider(QSlider):
+    """Barra del tempo che disegna la zona del ciclo A-B."""
+
+    def __init__(self, parent=None):
+        super().__init__(Qt.Orientation.Horizontal, parent)
+        self.loop = (None, None)
+
+    def set_loop(self, a, b):
+        self.loop = (a, b)
+        self.update()
+
+    def paintEvent(self, e):
+        super().paintEvent(e)
+        a, b = self.loop
+        if a is None and b is None or self.maximum() <= 0:
+            return
+        from PySide6.QtGui import QPainter
+        from PySide6.QtWidgets import QStyle
+        hw = 14                                   # larghezza della maniglia (vedi stile)
+        span = max(1, self.width() - hw)
+
+        def x(v):
+            return hw // 2 + QStyle.sliderPositionFromValue(self.minimum(), self.maximum(), int(v), span)
+        p = QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        cy = self.height() // 2
+        if a is not None and b is not None:
+            p.fillRect(x(a), cy - 5, max(2, x(b) - x(a)), 10, QColor(255, 170, 40, 110))
+        p.setPen(QColor(255, 170, 40))
+        f = p.font()
+        f.setPointSizeF(7)
+        f.setBold(True)
+        p.setFont(f)
+        for v, t in ((a, "A"), (b, "B")):
+            if v is not None:
+                xx = x(v)
+                p.drawLine(xx, cy - 8, xx, cy + 8)
+                p.drawText(xx + 2, cy - 1 if t == "A" else cy + 9, t)
+        p.end()
+
+
 class ControlBar(QFrame):
     """Barra comandi semitrasparente che compare muovendo il mouse."""
 
@@ -42,16 +83,62 @@ class ControlBar(QFrame):
         self.setStyleSheet(
             "#bar { background: rgba(20,20,22,210); border-radius: 10px; }"
             "QToolButton { color: #eee; background: transparent; border: none;"
-            " padding: 6px 10px; font-size: 11pt; border-radius: 6px; }"
+            " padding: 6px 7px; font-size: 11pt; border-radius: 6px; }"
             "QToolButton:hover { background: rgba(255,255,255,40); }"
-            "QLabel { color: #ccc; font-size: 10pt; padding: 0 4px; }")
-        lay = QHBoxLayout(self)
-        lay.setContentsMargins(8, 4, 8, 4)
-        lay.setSpacing(2)
+            "QLabel { color: #ccc; font-size: 10pt; padding: 0 4px; }"
+            "QSlider::groove:horizontal { height: 6px; background: rgba(255,255,255,60); border-radius: 3px; }"
+            "QSlider::sub-page:horizontal { background: #4da3ff; border-radius: 3px; }"
+            "QSlider::handle:horizontal { background: #fff; width: 14px; margin: -5px 0; border-radius: 7px; }")
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(8, 4, 8, 4)
+        outer.setSpacing(2)
         S = viewer.settings
 
+        # riga del tempo: solo con i video
+        self.seek_row = QWidget(self)
+        sr = QHBoxLayout(self.seek_row)
+        sr.setContentsMargins(4, 2, 4, 0)
+        sr.setSpacing(6)
+        self.vplay = QToolButton(self.seek_row)
+        self.vplay.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.vplay.setToolTip(tr("Riproduci / metti in pausa il video"))
+        self.vplay.clicked.connect(viewer.toggle_video_pause)
+        self.t_pos = QLabel("0:00", self.seek_row)
+        self.slider = SeekSlider(self.seek_row)
+        self.slider.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.slider.setRange(0, 0)
+        self.slider.setMinimumWidth(200)
+        self.slider.setToolTip(tr("Trascina o fai clic per andare a un punto del video"))
+        self.slider.sliderMoved.connect(self._seek_drag)
+        self.slider.sliderReleased.connect(lambda: self._seek_to(self.slider.value()))
+        self.slider.actionTriggered.connect(self._seek_action)
+        self.t_dur = QLabel("0:00", self.seek_row)
+        sr.addWidget(self.vplay)
+        sr.addWidget(self.t_pos)
+        sr.addWidget(self.slider, 1)
+        sr.addWidget(self.t_dur)
+        self.loop_btns = []
+        for txt, aid, slot in (("A", "loop_a", viewer.set_loop_a), ("B", "loop_b", viewer.set_loop_b),
+                               ("✕ A-B", "loop_clear", viewer.clear_loop)):
+            b = QToolButton(self.seek_row)
+            b.setText(txt)
+            k = shortcuts.native(S, "viewer", aid, True)
+            b.setToolTip(shortcuts.label("viewer", aid) + (f" ({k})" if k else ""))
+            b.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+            b.clicked.connect(slot)
+            sr.addWidget(b)
+            self.loop_btns.append(b)
+        self.loop_clear_btn = self.loop_btns[2]
+        outer.addWidget(self.seek_row)
+
+        row = QWidget(self)
+        lay = QHBoxLayout(row)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.setSpacing(2)
+        outer.addWidget(row)
+
         def btn(text, aid, slot, tip=None):
-            b = QToolButton(self)
+            b = QToolButton(row)
             b.setText(text)
             k = shortcuts.native(S, "viewer", aid, True) if aid else ""
             b.setToolTip((tip or shortcuts.label("viewer", aid)) + (f" ({k})" if k else ""))
@@ -75,6 +162,15 @@ class ControlBar(QFrame):
         btn("⟳", "rotate_right", lambda: viewer.rotate("right"))
         btn("⤢", "fit_mode", viewer.cycle_fit)
         self.fav = btn("♡", "favorite", viewer.toggle_favorite)
+        self.audio = btn("🔊", "video_audio", viewer.toggle_video_audio)
+        self.vol = QSlider(Qt.Orientation.Horizontal, row)
+        self.vol.setRange(0, 100)
+        self.vol.setFixedWidth(70)
+        self.vol.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.vol.setSingleStep(5)
+        self.vol.setPageStep(10)
+        self.vol.valueChanged.connect(viewer.set_video_volume)
+        lay.addWidget(self.vol)
         lay.addSpacing(10)
         btn(tr("Opzioni"), "options", viewer.open_options)
         btn("✕", "close", viewer.close, tr("Chiudi"))
@@ -85,11 +181,80 @@ class ControlBar(QFrame):
         self.interval.setText(tr("Intervallo") + " " + self.v._fmt_interval())
         p = self.v.nav.current()
         self.fav.setText("♥" if p and library.is_favorite(p) else "♡")
+        vid = getattr(self.v, "video", None)
+        self.audio.setVisible(vid is not None)
+        self.vol.setVisible(vid is not None)
+        self.seek_row.setVisible(vid is not None)
+        if vid is not None:
+            self.audio.setText("🔇" if vid.muted() else ("🔉" if vid.volume() < 50 else "🔊"))
+            self.vol.blockSignals(True)
+            self.vol.setValue(vid.volume())
+            self.vol.blockSignals(False)
+            self.vol.setToolTip(tr("Volume del video") + f": {vid.volume()}%  (" + tr("solo per questo programma") + ")")
+            self.vplay.setText("▶" if not vid.is_playing() else "❚❚")
+            self.set_time(vid.position(), vid.duration())
+            can = self.v._loop_allowed()
+            for b in self.loop_btns:
+                b.setVisible(can)
+            on = vid.loop_a is not None or vid.loop_b is not None
+            self.loop_clear_btn.setVisible(can and on)
+            for b, v in ((self.loop_btns[0], vid.loop_a), (self.loop_btns[1], vid.loop_b)):
+                b.setText(b.text()[0] + (" " + self._fmt(v) if v is not None else ""))
+                b.setStyleSheet("color: #ffaa28; font-weight: bold;" if v is not None else "")
+            self.slider.set_loop(vid.loop_a, vid.loop_b)
         self.adjustSize()
         self.place()
 
+    @staticmethod
+    def _fmt(ms):
+        sec = max(0, int(ms) // 1000)
+        h, rem = divmod(sec, 3600)
+        m, sec = divmod(rem, 60)
+        return f"{h}:{m:02d}:{sec:02d}" if h else f"{m}:{sec:02d}"
+
+    def set_time(self, pos, dur):
+        dur = max(0, int(dur))
+        if self.slider.maximum() != dur:
+            self.slider.setRange(0, dur)
+            self.slider.setPageStep(max(1000, dur // 20))
+            self.slider.setSingleStep(5000)
+        if not self.slider.isSliderDown():
+            self.slider.blockSignals(True)
+            self.slider.setValue(int(pos))
+            self.slider.blockSignals(False)
+            self.t_pos.setText(self._fmt(pos))
+        self.t_dur.setText(self._fmt(dur))
+        vid = getattr(self.v, "video", None)
+        if vid is not None:
+            self.vplay.setText("▶" if not vid.is_playing() else "❚❚")
+
+    def _seek_to(self, ms):
+        vid = getattr(self.v, "video", None)
+        if vid is not None:
+            vid.seek(ms)
+            self.t_pos.setText(self._fmt(ms))
+            self.v.bar_timer.start()
+
+    def _seek_drag(self, ms):
+        self.t_pos.setText(self._fmt(ms))
+        self._seek_to(ms)               # anteprima mentre si trascina
+
+    def _seek_action(self, action):
+        # clic sulla barra (fuori dalla maniglia): salta esattamente lì
+        A = QSlider.SliderAction
+        if self.slider.isSliderDown() or action not in (A.SliderPageStepAdd, A.SliderPageStepSub):
+            return
+        from PySide6.QtGui import QCursor
+        from PySide6.QtWidgets import QStyle
+        x = self.slider.mapFromGlobal(QCursor.pos()).x()
+        span = max(1, self.slider.width())
+        ms = QStyle.sliderValueFromPosition(self.slider.minimum(), self.slider.maximum(), x, span)
+        QTimer.singleShot(0, lambda: (self.slider.setValue(ms), self._seek_to(ms)))
+
     def place(self):
         p = self.parentWidget()
+        if self.width() > p.width() - 8:
+            self.resize(max(200, p.width() - 8), self.height())
         self.move((p.width() - self.width()) // 2, p.height() - self.height() - 16)
 
 
@@ -276,7 +441,7 @@ class ViewerWindow(QWidget):
             self._sync_pair_animation()
             return
         if self.video is not None:
-            if self._animation_allowed():
+            if self._animation_allowed() and not self.video.user_paused:
                 self.video.play()
             else:
                 self.video.pause()
@@ -291,7 +456,8 @@ class ViewerWindow(QWidget):
     def _start_video(self, path):
         from .video import VideoPlayer
         try:
-            v = VideoPlayer(path, muted=not self._st("viewer/video_audio", False), parent=self)
+            v = VideoPlayer(path, muted=not self._st("viewer/video_sound", True),
+                            volume=int(self._st("viewer/video_volume", 100)), parent=self)
         except Exception as e:  # noqa: BLE001 - QtMultimedia non disponibile
             self._display_error(path, str(e))
             return
@@ -299,6 +465,8 @@ class ViewerWindow(QWidget):
         self._video_frames = 0
         v.frame.connect(lambda img, v=v: self._on_video_frame(v, img))
         v.failed.connect(lambda err, v=v: self._video_failed(v, err))
+        v.position_changed.connect(lambda ms, v=v: v is self.video and self.bar.set_time(ms, v.duration()))
+        v.duration_changed.connect(lambda ms, v=v: v is self.video and self.bar.set_time(v.position(), ms))
         v.play()        # serve per il primo fotogramma; se non deve animarsi si ferma subito
 
     def _on_video_frame(self, v, img):
@@ -701,13 +869,79 @@ class ViewerWindow(QWidget):
         self.canvas.flash(("♫ " + self.music.title()) if self.music_on else tr("Musica spenta"))
         self._update_info()
 
+    def toggle_video_pause(self):
+        v = self.video
+        if v is None:
+            return
+        if v.is_playing():
+            v.user_paused = True
+            v.pause()
+        else:
+            v.user_paused = False
+            v.play()
+        self.bar.refresh()
+
+    def _loop_allowed(self):
+        return self.video is not None and not self.slideshow_mode
+
+    def set_loop_a(self):
+        v = self.video
+        if not self._loop_allowed():
+            return
+        a = v.position()
+        b = v.loop_b if v.loop_b is not None and v.loop_b > a + 100 else None
+        v.set_loop(a, b)
+        self.canvas.flash(tr("Punto A") + " " + ControlBar._fmt(a)
+                          + ("" if b is not None else " – " + tr("ora imposta il punto B")))
+        self.bar.refresh()
+
+    def set_loop_b(self):
+        v = self.video
+        if not self._loop_allowed():
+            return
+        b = v.position()
+        a = v.loop_a if v.loop_a is not None else 0
+        if b <= a + 100:
+            self.canvas.flash(tr("Il punto B deve venire dopo il punto A"))
+            return
+        v.set_loop(a, b)
+        self.canvas.flash(tr("Ciclo A-B") + f" {ControlBar._fmt(a)} → {ControlBar._fmt(b)}")
+        self.bar.refresh()
+
+    def clear_loop(self):
+        v = self.video
+        if v is None or (v.loop_a is None and v.loop_b is None):
+            return
+        v.set_loop(None, None)
+        self.canvas.flash(tr("Ciclo A-B tolto"))
+        self.bar.refresh()
+
+    def set_video_volume(self, v, flash=False):
+        vid = self.video
+        if vid is None:
+            return
+        louder = int(v) > vid.volume()
+        vid.set_volume(v)
+        self.settings.setValue("viewer/video_volume", vid.volume())
+        if vid.muted() and louder:                # alzare il volume riaccende l'audio
+            vid.set_muted(False)
+            self.settings.setValue("viewer/video_sound", True)
+        if flash:
+            self.canvas.flash(tr("Volume del video") + f": {vid.volume()}%")
+        self.bar.refresh()
+
+    def change_video_volume(self, step):
+        if self.video is not None:
+            self.set_video_volume(self.video.volume() + step, flash=True)
+
     def toggle_video_audio(self):
         if self.video is None:
             return
         self.video.set_muted(not self.video.muted())
-        self.settings.setValue("viewer/video_audio", not self.video.muted())
-        self.canvas.style_["viewer/video_audio"] = not self.video.muted()
+        self.settings.setValue("viewer/video_sound", not self.video.muted())
+        self.canvas.style_["viewer/video_sound"] = not self.video.muted()
         self.canvas.flash(tr("Audio del video attivo") if not self.video.muted() else tr("Video muto"))
+        self.bar.refresh()
         self._update_info()
 
     # ------------------------------------------------------------ opzioni
@@ -1115,6 +1349,9 @@ class ViewerWindow(QWidget):
             "copy_image": lambda: fileops.copy_image(self.canvas.image),
             "image_info": self.image_info, "music": self.toggle_music,
             "video_audio": self.toggle_video_audio, "options": self.open_options,
+            "volume_up": lambda: self.change_video_volume(5),
+            "volume_down": lambda: self.change_video_volume(-5),
+            "loop_a": self.set_loop_a, "loop_b": self.set_loop_b, "loop_clear": self.clear_loop,
             "to_browser": lambda: None if self.slideshow_mode else self.back_to_browser(),
             "close": lambda: self.back_to_browser() if self.slideshow_mode else self.close(),
         }
@@ -1340,6 +1577,10 @@ class ViewerWindow(QWidget):
         self._act(fmn, "image_info", tr("Informazioni immagine (EXIF)…"), enabled=bool(path))
         if self.video is not None:
             self._act(m, "video_audio", checkable=True, checked=not self.video.muted())
+            if self._loop_allowed():
+                self._act(m, "loop_a")
+                self._act(m, "loop_b")
+                self._act(m, "loop_clear", enabled=self.video.loop_a is not None or self.video.loop_b is not None)
         m.addSeparator()
         kind = undo_manager.last_kind()
         self._act(m, "undo", {"delete": tr("Annulla eliminazione"), "move": tr("Annulla spostamento"),

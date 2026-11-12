@@ -20,15 +20,28 @@ def _mm():
     return QtMultimedia
 
 
+def _perceived(v):
+    """Volume 0–100 su scala percepita (logaritmica) → valore lineare per QAudioOutput."""
+    x = max(0, min(100, v)) / 100
+    try:
+        A = _mm().QtAudio
+        return A.convertVolume(x, A.VolumeScale.LogarithmicVolumeScale, A.VolumeScale.LinearVolumeScale)
+    except AttributeError:          # Qt più vecchio
+        return x * x
+
+
 class VideoPlayer(QObject):
     """Riproduce path; frame(QImage) a ogni fotogramma."""
     frame = Signal(object)
     failed = Signal(str)
+    position_changed = Signal(int)      # ms
+    duration_changed = Signal(int)      # ms
 
-    def __init__(self, path, muted=True, parent=None):
+    def __init__(self, path, muted=True, volume=100, parent=None):
         super().__init__(parent)
         mm = _mm()
         self.path = path
+        self._volume = max(0, min(100, int(volume)))
         self.player = mm.QMediaPlayer(self)
         self.audio = None           # l'uscita audio si crea solo se serve (video muto = nessuna)
         if not muted:
@@ -38,6 +51,11 @@ class VideoPlayer(QObject):
         self.sink.videoFrameChanged.connect(self._on_frame)
         self.player.errorOccurred.connect(lambda _e, s: self.failed.emit(s or "video"))
         self.player.setLoops(mm.QMediaPlayer.Loops.Infinite)
+        self.player.positionChanged.connect(self._on_position)
+        self.loop_a = None              # ciclo A-B in ms (None = non impostato)
+        self.loop_b = None
+        self.player.durationChanged.connect(lambda ms: self.duration_changed.emit(int(ms)))
+        self.user_paused = False
         self._buf = None
         if is_virtual(path):
             from PySide6.QtCore import QBuffer, QByteArray, QIODevice
@@ -70,11 +88,53 @@ class VideoPlayer(QObject):
             if m:
                 return
             self.audio = _mm().QAudioOutput(self)
+            self.audio.setVolume(_perceived(self._volume))
+            playing = self.is_playing()
+            pos = self.player.position()
             self.player.setAudioOutput(self.audio)
+            if playing:                     # alcuni backend agganciano l'audio solo dal riavvio
+                self.player.setPosition(pos)
+                self.player.play()
         self.audio.setMuted(m)
 
     def muted(self):
         return self.audio is None or self.audio.isMuted()
+
+    def volume(self):
+        return self._volume
+
+    def set_volume(self, v):
+        """0–100: volume di questa applicazione (non tocca quello del sistema)."""
+        self._volume = max(0, min(100, int(v)))
+        if self.audio is not None:
+            self.audio.setVolume(_perceived(self._volume))
+
+    def _on_position(self, ms):
+        ms = int(ms)
+        a, b = self.loop_a, self.loop_b
+        if a is not None and b is not None and (ms >= b or ms < a - 250):
+            self.player.setPosition(a)
+            ms = a
+        self.position_changed.emit(ms)
+
+    def set_loop(self, a, b):
+        self.loop_a, self.loop_b = a, b
+        if a is not None and b is not None:
+            pos = self.position()
+            if pos < a or pos >= b:
+                self.player.setPosition(a)
+
+    def position(self):
+        return int(self.player.position())
+
+    def duration(self):
+        return int(self.player.duration())
+
+    def seekable(self):
+        return self.player.isSeekable()
+
+    def seek(self, ms):
+        self.player.setPosition(max(0, min(int(ms), max(0, self.duration()))))
 
     def stop(self):
         try:

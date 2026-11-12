@@ -25,7 +25,8 @@ DEFAULTS = {
     "gpu/render": "auto",        # auto | gl | gl_soft | cpu (vedi gpu.py; serve il riavvio)
     "gpu/nvjpeg": False,         # JPEG decodificati dalla GPU NVIDIA (nvImageCodec)
     "viewer/quick_delete": True,       # Canc senza conferma (annullabile con Ctrl+Z)
-    "viewer/video_audio": False,       # audio dei video
+    "viewer/video_sound": True,        # audio dei video
+    "viewer/video_volume": 100,        # volume dei video (solo questo programma)
     "viewer/loupe_mag": 3.0,
     "slideshow/transition": "fade",    # none | fade | slide | kenburns
     "slideshow/transition_ms": 600,
@@ -270,12 +271,20 @@ class OptionsDialog(QDialog):
     def _tab_viewer(self):
         self.ck_quick = QCheckBox(tr("Eliminazione rapida senza conferma (annullabile con Ctrl+Z)"))
         self.ck_vaudio = QCheckBox(tr("Audio dei video attivo (tasto A per cambiare al volo)"))
+        self.sl_vvol = QSlider(Qt.Orientation.Horizontal)
+        self.sl_vvol.setRange(0, 100)
+        self.lb_vvol = QLabel()
+        self.sl_vvol.valueChanged.connect(lambda v: self.lb_vvol.setText(f"{v}%"))
+        vrow = QHBoxLayout()
+        vrow.addWidget(self.sl_vvol, 1)
+        vrow.addWidget(self.lb_vvol)
         self.sp_loupe = QDoubleSpinBox(minimum=1.5, maximum=16, singleStep=0.5, decimals=1)
         self.sp_loupe.setPrefix("× ")
         g = QGroupBox(tr("Visualizzatore"))
         f = QFormLayout(g)
         f.addRow(self.ck_quick)
         f.addRow(self.ck_vaudio)
+        f.addRow(tr("Volume dei video (solo questo programma):"), vrow)
         f.addRow(tr("Ingrandimento della lente:"), self.sp_loupe)
         return self._page(g)
 
@@ -424,7 +433,9 @@ class OptionsDialog(QDialog):
         keys = [k for k, _n in self._screens]
         self.cb_screen.setCurrentIndex(keys.index(s["slideshow/screen"]) if s["slideshow/screen"] in keys else 0)
         self.ck_quick.setChecked(s["viewer/quick_delete"])
-        self.ck_vaudio.setChecked(s["viewer/video_audio"])
+        self.ck_vaudio.setChecked(s["viewer/video_sound"])
+        self.sl_vvol.setValue(int(s["viewer/video_volume"]))
+        self.lb_vvol.setText(f"{self.sl_vvol.value()}%")
         self.sp_loupe.setValue(float(s["viewer/loupe_mag"]))
         self.ck_anim_play.setChecked(s["viewer/animate_slideshow"])
         self.ck_anim_pair.setChecked(s["viewer/animate_pair"])
@@ -536,7 +547,8 @@ class OptionsDialog(QDialog):
         s["slideshow/videos"] = self.ck_videos.isChecked()
         s["slideshow/screen"] = self._screens[self.cb_screen.currentIndex()][0]
         s["viewer/quick_delete"] = self.ck_quick.isChecked()
-        s["viewer/video_audio"] = self.ck_vaudio.isChecked()
+        s["viewer/video_sound"] = self.ck_vaudio.isChecked()
+        s["viewer/video_volume"] = self.sl_vvol.value()
         s["viewer/loupe_mag"] = self.sp_loupe.value()
         s["viewer/animate_slideshow"] = self.ck_anim_play.isChecked()
         s["viewer/animate_pair"] = self.ck_anim_pair.isChecked()
