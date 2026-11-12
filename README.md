@@ -15,6 +15,13 @@ ratings and collections, quick edits and batch operations.<br>
 
 ---
 
+## What's new in version 2.0.1
+
+- **Videos**: they now play **with sound**, with a 🔊/🔇 button (key **A**) and a **volume** slider that only changes this program's volume, not the system's (also Shift+↑ / Shift+↓).
+- **Time bar** for videos: shows position and duration; drag it or click anywhere to jump to that point. A separate button pauses the video, independent of the slideshow.
+- **A-B loop**: outside the slideshow, mark a start point (**Shift+A**) and an end point (**Shift+B**) and the video keeps repeating that section, highlighted on the bar; **Shift+C** clears it.
+- More compact control bar, so it fits smaller windows too.
+
 ## What's new in version 2.0
 
 - **Reorganised menus, toolbar and right-click menus**: every command has the same name and the same key in all three places, and buttons and items disable themselves when they don't apply.
@@ -90,8 +97,8 @@ The `.github/workflows/build.yml` workflow builds the program for **Windows x64,
 - a **tag** starting with `v` also publishes them as a **Release**:
 
 ```
-git tag v2.0.0
-git push origin v2.0.0
+git tag v2.0.1
+git push origin v2.0.1
 ```
 
 ## Explorer context menu
@@ -204,11 +211,13 @@ The slideshow options are in the browser bar: **Interval**, **Random**, **Loop**
 | E, V | Edit image, vertical reading |
 | F2, Ctrl+C, Alt+Enter | Rename, copy the image, EXIF info |
 | Ctrl+M, A | Slideshow music, video sound |
+| Shift+↑ / Shift+↓ | Video volume |
+| Shift+A, Shift+B, Shift+C | Video A-B loop: set A, set B, clear |
 | O | Options |
 | Enter | Back to the browser on this image (viewer only) |
 | Esc | In the slideshow: exit and return to the browser. In the viewer: close |
 
-Moving the mouse shows a **control bar** at the bottom (start/stop, previous/next image and folder, interval, rotate, fit, Favourites, options). **Right-click** opens a menu with all the commands, grouped: *Slideshow* (transition, music, 2 side by side, manga), *View* (fit, zoom, rotate and flip, background, magnifier, histogram, eyedropper, full screen, vertical reading), *Rating*, *Label*, *Favourites*, *Add to collection*, *Sort into*, *File* (edit, rename, copy, open with, background, print, show in Explorer, copy path, EXIF), *Undo*, *Delete*, *Options*, *Keyboard shortcuts*.
+Moving the mouse shows a **control bar** at the bottom (start/stop, previous/next image and folder, interval, rotate, fit, Favourites, options; with videos also the time bar, pause, A-B loop, sound and volume). **Right-click** opens a menu with all the commands, grouped: *Slideshow* (transition, music, 2 side by side, manga), *View* (fit, zoom, rotate and flip, background, magnifier, histogram, eyedropper, full screen, vertical reading), *Rating*, *Label*, *Favourites*, *Add to collection*, *Sort into*, *File* (edit, rename, copy, open with, background, print, show in Explorer, copy path, EXIF), *Undo*, *Delete*, *Options*, *Keyboard shortcuts*.
 
 ### Two images side by side
 
@@ -221,7 +230,11 @@ With **2 side by side** ticked (or the **D** key during the slideshow) you see t
 - **Viewer**: animations and videos start straight away, with zoom and panning as for photos.
 - **Slideshow**: while it runs the first frame is shown. With one image at a time the animation starts when you pause and stops on the current frame when you resume (option *Animate GIF and WebP files in Slideshow mode*, on by default). With **two side by side** images stay still, unless *Animate … with two images side by side* is turned on: then both animate when paused.
 - **Browser**: when a single animated GIF / WebP is selected its thumbnail animates; the preview pane animates GIFs and plays videos, without sound.
-- **Videos** (MP4, M4V, MOV, WebM, MKV, AVI, WMV…) appear in the browser with a thumbnail and the ▶ symbol and behave like GIFs. In the viewer they play with sound; **A** or the 🔊 button in the control bar turns it off and on, and the choice is remembered. Next to it is the **volume** slider (also Shift+↑ / Shift+↓ and *Options → Viewer*): it changes only this program's volume, not the system's. Moving the mouse shows a time bar above the buttons (position and duration): drag it or click anywhere on it to jump there; next to it is a button to pause the video. Outside the slideshow you can loop a section: **A** (Shift+A) marks the start, **B** (Shift+B) the end, and the video keeps repeating that part, highlighted on the bar; **✕ A-B** (Shift+C) clears the loop. The same items are in the context menu. They can be hidden in *Options → Slideshow*.
+- **Videos** (MP4, M4V, MOV, WebM, MKV, AVI, WMV…) appear in the browser with a thumbnail and the ▶ symbol and behave like GIFs. They can be hidden in *Options → Slideshow*. In the viewer:
+  - **Sound**: videos play with sound; **A** or the 🔊 button in the control bar turns it off and on, and the choice is remembered.
+  - **Volume**: the slider next to 🔊 (also **Shift+↑ / Shift+↓** and *Options → Viewer*) changes only this program's volume, not the system's.
+  - **Time bar**: moving the mouse shows it above the buttons, with position and duration; drag it or click anywhere on it to jump there. The button next to it pauses the video.
+  - **A-B loop** (outside the slideshow): **A** (Shift+A) marks the start, **B** (Shift+B) the end, and the video keeps repeating that part, highlighted in orange on the bar; **✕ A-B** (Shift+C) clears the loop. The same items are in the context menu.
 - It also works with animations inside archives.
 
 ## Comics and manga

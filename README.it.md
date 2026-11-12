@@ -15,6 +15,13 @@ fumetti (CBZ, CBR, CB7), valutazioni e raccolte, ritocchi rapidi e operazioni in
 
 ---
 
+## Novità della versione 2.0.1
+
+- **Video**: ora partono **con l'audio**, con un pulsante 🔊/🔇 (tasto **A**) e un cursore del **volume** che regola solo questo programma, non il volume del sistema (anche Maiusc+↑ / Maiusc+↓).
+- **Barra del tempo** per i video: mostra posizione e durata; trascinala o fai clic in un punto per andarci. Un pulsante a parte mette in pausa il video, indipendentemente dallo slideshow.
+- **Ciclo A-B**: fuori dallo slideshow segni un punto di inizio (**Maiusc+A**) e uno di fine (**Maiusc+B**) e il video ripete sempre quel tratto, evidenziato sulla barra; **Maiusc+C** lo toglie.
+- Barra comandi più compatta, così ci sta anche nelle finestre piccole.
+
 ## Novità della versione 2.0
 
 - **Menu, pulsanti e menu del tasto destro riorganizzati**: ogni comando ha lo stesso nome e lo stesso tasto in tutti e tre i posti, e pulsanti e voci si disattivano da soli quando non servono.
@@ -90,8 +97,8 @@ Il workflow `.github/workflows/build.yml` compila il programma per **Windows x64
 - con un **tag** che inizia per `v` li pubblica anche come **Release**:
 
 ```
-git tag v2.0.0
-git push origin v2.0.0
+git tag v2.0.1
+git push origin v2.0.1
 ```
 
 ## Menu contestuale di Esplora risorse
@@ -204,11 +211,13 @@ Le opzioni dello slideshow sono nella barra del browser: **Intervallo**, **Casua
 | E, V | Modifica immagine, lettura verticale |
 | F2, Ctrl+C, Alt+Invio | Rinomina, copia l'immagine, informazioni EXIF |
 | Ctrl+M, A | Musica dello slideshow, audio del video |
+| Maiusc+↑ / Maiusc+↓ | Volume del video |
+| Maiusc+A, Maiusc+B, Maiusc+C | Ciclo A-B del video: imposta A, imposta B, togli |
 | O | Opzioni |
 | Invio | Torna al browser su questa immagine (solo nel visualizzatore) |
 | Esc | Nello slideshow: esci e torna al browser. Nel visualizzatore: chiudi |
 
-Muovendo il mouse compare in basso una **barra dei comandi** (avvia/ferma, immagine e cartella precedente/successiva, intervallo, ruota, adatta, Preferiti, opzioni). Il **tasto destro** apre un menu con tutti i comandi raggruppati: *Slideshow* (transizione, musica, 2 affiancate, manga), *Visualizzazione* (adatta, zoom, ruota e specchia, sfondo, lente, istogramma, contagocce, schermo intero, lettura verticale), *Valutazione*, *Etichetta*, *Preferiti*, *Aggiungi a raccolta*, *Smista in*, *File* (modifica, rinomina, copia, apri con, sfondo, stampa, mostra in Esplora risorse, copia percorso, EXIF), *Annulla*, *Elimina*, *Opzioni*, *Tasti di scelta rapida*.
+Muovendo il mouse compare in basso una **barra dei comandi** (avvia/ferma, immagine e cartella precedente/successiva, intervallo, ruota, adatta, Preferiti, opzioni; con i video anche barra del tempo, pausa, ciclo A-B, audio e volume). Il **tasto destro** apre un menu con tutti i comandi raggruppati: *Slideshow* (transizione, musica, 2 affiancate, manga), *Visualizzazione* (adatta, zoom, ruota e specchia, sfondo, lente, istogramma, contagocce, schermo intero, lettura verticale), *Valutazione*, *Etichetta*, *Preferiti*, *Aggiungi a raccolta*, *Smista in*, *File* (modifica, rinomina, copia, apri con, sfondo, stampa, mostra in Esplora risorse, copia percorso, EXIF), *Annulla*, *Elimina*, *Opzioni*, *Tasti di scelta rapida*.
 
 ### Due immagini affiancate
 
@@ -221,7 +230,11 @@ Con **2 affiancate** spuntato (o il tasto **D** durante lo slideshow) si vedono 
 - **Visualizzatore**: animazioni e video partono subito, con zoom e spostamento come per le foto.
 - **Slideshow**: mentre scorre si vede il primo fotogramma. Con un'immagine alla volta l'animazione parte quando metti in pausa e si ferma sul fotogramma corrente quando riprendi (opzione *Animazione di file GIF e WebP in modalità Slideshow*, attiva di default). Con **2 affiancate** le immagini restano ferme, a meno di attivare *Animazione … con due immagini affiancate*: allora in pausa si animano entrambe.
 - **Browser**: selezionando una sola GIF / WebP animata la miniatura si anima; il pannello anteprima anima le GIF e riproduce i video, senza audio.
-- I **video** (MP4, M4V, MOV, WebM, MKV, AVI, WMV…) compaiono nel browser con una miniatura e il simbolo ▶ e si comportano come le GIF. Nel visualizzatore partono con l'audio; **A** o il pulsante 🔊 nella barra comandi lo spengono e lo riaccendono, e la scelta viene ricordata. Accanto c'è il cursore del **volume** (anche Maiusc+↑ / Maiusc+↓ e in *Opzioni → Visualizzatore*): regola solo il volume di questo programma, non quello del sistema. Muovendo il mouse, sopra i pulsanti compare la barra del tempo (posizione e durata): trascinala o fai clic in un punto per andarci; accanto c'è il pulsante per mettere in pausa il video. Fuori dallo slideshow si può ripetere un tratto in ciclo: **A** (Maiusc+A) segna l'inizio, **B** (Maiusc+B) la fine e il video ripete sempre quella parte, evidenziata sulla barra; **✕ A-B** (Maiusc+C) toglie il ciclo. Le stesse voci sono nel menu contestuale. Si possono nascondere in *Opzioni → Slideshow*.
+- I **video** (MP4, M4V, MOV, WebM, MKV, AVI, WMV…) compaiono nel browser con una miniatura e il simbolo ▶ e si comportano come le GIF. Si possono nascondere in *Opzioni → Slideshow*. Nel visualizzatore:
+  - **Audio**: i video partono con l'audio; **A** o il pulsante 🔊 nella barra comandi lo spengono e lo riaccendono, e la scelta viene ricordata.
+  - **Volume**: il cursore accanto a 🔊 (anche **Maiusc+↑ / Maiusc+↓** e *Opzioni → Visualizzatore*) regola solo il volume di questo programma, non quello del sistema.
+  - **Barra del tempo**: muovendo il mouse compare sopra i pulsanti, con posizione e durata; trascinala o fai clic in un punto per andarci. Il pulsante accanto mette in pausa il video.
+  - **Ciclo A-B** (fuori dallo slideshow): **A** (Maiusc+A) segna l'inizio, **B** (Maiusc+B) la fine e il video ripete sempre quella parte, evidenziata in arancione sulla barra; **✕ A-B** (Maiusc+C) toglie il ciclo. Le stesse voci sono nel menu contestuale.
 - Funziona anche con le animazioni dentro gli archivi.
 
 ## Fumetti e manga
