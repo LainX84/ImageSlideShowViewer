@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Image SlideShow Viewer
+Comment=Image viewer and slideshow in the style of ACDSee
+Comment[it]=Visualizzatore di immagini e slideshow in stile ACDSee
+Exec=ImageSlideShowViewer %F
+Icon=imageslideshowviewer
+Terminal=false
+Categories=Graphics;Viewer;Photography;
+MimeType=image/jpeg;image/png;image/gif;image/webp;image/tiff;image/bmp;image/heic;image/heif;image/avif;image/jxl;application/vnd.comicbook+zip;application/vnd.comicbook-rar;application/x-cb7;video/mp4;video/webm;

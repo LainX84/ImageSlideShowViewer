@@ -22,6 +22,7 @@ class Navigator:
                  start_folder=None):
         """folders: elenco esplicito di cartelle da percorrere (cartelle selezionate)."""
         self.root = folder
+        self.explicit_start = start is not None    # aperto su un'immagine precisa (niente "riprendi")
         self.include_sub = (include_sub or folders is not None) and images is None
         self.shuffle = shuffle
         self.loop = loop

@@ -61,3 +61,51 @@ class BgWorker(QObject):
     def shutdown(self):
         self._gen += 1
         self._ex.shutdown(wait=False, cancel_futures=True)
+
+
+def run_with_progress(parent, title, fn, *args):
+    """Esegue fn(progress, *args) in un thread mostrando una barra di avanzamento.
+
+    progress(i, n, testo) aggiorna la barra e ritorna True se l'utente ha annullato.
+    Ritorna il risultato di fn, oppure None se annullato. Le eccezioni vengono rilanciate."""
+    import threading
+    import time
+    from PySide6.QtCore import QEventLoop, Qt as _Qt
+    from PySide6.QtWidgets import QApplication, QProgressDialog
+    from .i18n import tr
+    state = {"i": 0, "n": 0, "text": "", "cancel": False, "done": False, "res": None, "err": None}
+
+    def progress(i, n, text=""):
+        state["i"], state["n"], state["text"] = i, n, text
+        return state["cancel"]
+
+    def run():
+        try:
+            state["res"] = fn(progress, *args)
+        except BaseException as e:  # noqa: BLE001
+            state["err"] = e
+        state["done"] = True
+
+    dlg = QProgressDialog(title, tr("Annulla"), 0, 0, parent)
+    dlg.setWindowTitle(title)
+    dlg.setWindowModality(_Qt.WindowModality.WindowModal)
+    dlg.setMinimumDuration(400)
+    dlg.setMinimumWidth(460)
+    t = threading.Thread(target=run, daemon=True)
+    t.start()
+    while not state["done"]:
+        QApplication.processEvents(QEventLoop.ProcessEventsFlag.AllEvents, 50)
+        if dlg.wasCanceled():
+            state["cancel"] = True
+        n = state["n"]
+        if n:
+            dlg.setMaximum(n)
+            dlg.setValue(min(state["i"], n))
+        if state["text"]:
+            dlg.setLabelText(state["text"])
+        time.sleep(0.02)
+    dlg.reset()
+    dlg.close()
+    if state["err"] is not None and not isinstance(state["err"], InterruptedError):
+        raise state["err"]
+    return None if state["cancel"] else state["res"]

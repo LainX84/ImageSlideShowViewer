@@ -55,15 +55,17 @@ def ensure_pyside():
     except ImportError:
         pass
     if not message(T("Per funzionare Image SlideShow Viewer ha bisogno della libreria PySide6 "
-                     "(circa 100 MB).\n\nInstallarla adesso?",
-                     "Image SlideShow Viewer needs the PySide6 library (about 100 MB).\n\n"
-                     "Install it now?"), ask=True):
+                     "e di alcune librerie per i formati (circa 200 MB in tutto).\n\nInstallarle adesso?",
+                     "Image SlideShow Viewer needs the PySide6 library and a few format libraries "
+                     "(about 200 MB in total).\n\nInstall them now?"), ask=True):
         return False
     # python.exe next to pythonw.exe, so pip does not open extra windows
     exe = sys.executable
     if exe.lower().endswith("pythonw.exe"):
         exe = exe[:-len("pythonw.exe")] + "python.exe"
-    r = subprocess.run([exe, "-m", "pip", "install", "PySide6>=6.5"],
+    req = os.path.join(HERE, "requirements.txt")
+    pkgs = ["-r", req] if os.path.exists(req) else ["PySide6>=6.8"]
+    r = subprocess.run([exe, "-m", "pip", "install"] + pkgs,
                        capture_output=True, text=True,
                        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
     if r.returncode != 0:

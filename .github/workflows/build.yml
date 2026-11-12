@@ -1,0 +1,115 @@
+# Build automatica per Windows, macOS (Apple Silicon e Intel) e Linux.
+#  - ad ogni push / pull request: controlla che il codice si compili e che l'app si avvii;
+#  - su "Run workflow" o su un tag v*: crea i pacchetti (scaricabili da Actions → Artifacts);
+#  - su un tag v* (es. v2.0.0): li pubblica anche come Release su GitHub.
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: pip
+      - name: Librerie di sistema per Qt
+        run: sudo apt-get update && sudo apt-get install -y libegl1 libgl1 libxkbcommon-x11-0 libxcb-cursor0 libxcb-icccm4 libxcb-keysyms1 libxcb-image0 libxcb-render-util0 libxcb-shape0 libxcb-xinerama0 libpulse0 xvfb
+      - name: Dipendenze
+        run: pip install -r requirements.txt pyflakes
+      - name: Compilazione e controllo
+        run: |
+          python -m compileall -q isv image_slideshow_viewer.pyw
+          python -m pyflakes isv | grep -v "imported but unused" | grep -v "is assigned to but never used" || true
+      - name: Avvio di prova (5 secondi)
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          timeout 5 python image_slideshow_viewer.pyw || [ $? -eq 124 ]
+
+  build:
+    if: github.event_name != 'pull_request'
+    needs: check
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: windows-x64
+          - os: macos-latest
+            target: macos-arm64
+          - os: macos-15-intel
+            target: macos-x64
+          - os: ubuntu-22.04
+            target: linux-x64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: pip
+      - name: Librerie di sistema (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libegl1 libgl1 libxkbcommon-x11-0 libxcb-cursor0 libxcb-icccm4 libxcb-keysyms1 libxcb-image0 libxcb-render-util0 libxcb-shape0 libxcb-xinerama0 libpulse0
+      - name: Dipendenze
+        run: pip install -r requirements.txt pyinstaller
+      - name: Versione
+        id: ver
+        shell: bash
+        run: echo "version=$(python -c 'import sys; sys.path.insert(0, "."); import isv; print(isv.__version__)')" >> "$GITHUB_OUTPUT"
+      - name: PyInstaller
+        run: pyinstaller --noconfirm --clean packaging/ImageSlideShowViewer.spec
+      - name: Pacchetto Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Copy-Item README.md, README.it.md, LICENSE dist/ImageSlideShowViewer/
+          Compress-Archive -Path dist/ImageSlideShowViewer -DestinationPath "ImageSlideShowViewer-${{ steps.ver.outputs.version }}-${{ matrix.target }}.zip"
+      - name: Pacchetto macOS
+        if: runner.os == 'macOS'
+        run: |
+          APP="dist/Image SlideShow Viewer.app"
+          codesign --force --deep --sign - "$APP" || true
+          mkdir dmg && cp -R "$APP" dmg/ && ln -s /Applications dmg/Applications
+          hdiutil create -volname "Image SlideShow Viewer" -srcfolder dmg -ov -format UDZO \
+            "ImageSlideShowViewer-${{ steps.ver.outputs.version }}-${{ matrix.target }}.dmg"
+      - name: Pacchetto Linux
+        if: runner.os == 'Linux'
+        run: |
+          cp README.md README.it.md LICENSE dist/ImageSlideShowViewer/
+          cp packaging/linux/imageslideshowviewer.desktop dist/ImageSlideShowViewer/
+          cp docs/icon.png dist/ImageSlideShowViewer/imageslideshowviewer.png
+          tar -C dist -czf "ImageSlideShowViewer-${{ steps.ver.outputs.version }}-${{ matrix.target }}.tar.gz" ImageSlideShowViewer
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ImageSlideShowViewer-${{ matrix.target }}
+          path: |
+            *.zip
+            *.dmg
+            *.tar.gz
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: out
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: out/*
+          generate_release_notes: true

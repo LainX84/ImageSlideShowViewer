@@ -1,18 +1,13 @@
 @echo off
-rem Builds dist\ImageSlideShowViewer\ImageSlideShowViewer.exe with PyInstaller.
+rem Crea dist\ImageSlideShowViewer\ImageSlideShowViewer.exe con PyInstaller.
 cd /d "%~dp0"
-echo Installing / updating PySide6, Pillow and PyInstaller...
+echo Installazione / aggiornamento delle librerie e di PyInstaller...
 python -m pip install --upgrade -r requirements.txt pyinstaller || (pause & exit /b 1)
-python -m PyInstaller --noconfirm --clean --windowed ^
-  --name ImageSlideShowViewer ^
-  --icon isv\icon.ico ^
-  --add-data "isv\icon.ico;isv" ^
-  image_slideshow_viewer.pyw || (pause & exit /b 1)
-rem "build" only holds temporary files: remove it to avoid confusion.
+python -m PyInstaller --noconfirm --clean packaging\ImageSlideShowViewer.spec || (pause & exit /b 1)
+rem "build" contiene solo file temporanei
 rmdir /s /q build 2>nul
-del /q ImageSlideShowViewer.spec 2>nul
 echo.
-echo Done! The program is in:  dist\ImageSlideShowViewer\ImageSlideShowViewer.exe
-echo Move the whole dist\ImageSlideShowViewer folder (not just the .exe) wherever you like.
+echo Fatto! Il programma e' in:  dist\ImageSlideShowViewer\ImageSlideShowViewer.exe
+echo Sposta tutta la cartella dist\ImageSlideShowViewer (non solo l'.exe) dove preferisci.
 explorer "dist\ImageSlideShowViewer"
 pause

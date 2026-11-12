@@ -87,6 +87,10 @@ def read_exif(path):
         return None
     main, gps, raw, extra = [], [], [], []
     try:
+        from .codecs import _init_pillow, is_raw, is_video
+        if is_video(path) or is_raw(path):
+            return main, gps, raw, extra
+        _init_pillow()
         src = io.BytesIO(read_bytes(path)) if is_virtual(path) else path
         with Image.open(src) as im:
             extra.append((tr("Modalità colore"), im.mode))
@@ -265,12 +269,16 @@ class ImageInfoDialog(QDialog):
             pass
         self._section(tr("File"), rows)
 
-        # --- immagine (con Qt)
-        r, keep = image_reader(path)
-        fmt = bytes(r.format()).decode().upper() or os.path.splitext(name)[1].lstrip(".").upper()
-        size = r.size()
-        frames = r.imageCount() if r.supportsAnimation() else 0
-        rows = [(tr("Formato"), fmt)]
+        # --- immagine
+        from . import codecs
+        fmt = codecs.format_label(path)
+        frames = 0
+        if not codecs.is_video(path) and fmt in ("GIF", "WEBP"):
+            r, keep = image_reader(path)
+            frames = r.imageCount() if r.supportsAnimation() else 0
+            del keep
+        size = codecs.read_size(path) if not codecs.is_video(path) else QSize()
+        rows = [(tr("Formato"), fmt + (" (RAW: " + tr("anteprima incorporata") + ")" if codecs.is_raw(path) else ""))]
         if size.isValid():
             w, h = size.width(), size.height()
             rows.append((tr("Dimensioni"), f"{w} × {h} px"))
@@ -279,19 +287,23 @@ class ImageInfoDialog(QDialog):
         if frames > 1:
             rows.append((tr("Fotogrammi (animazione)"), str(frames)))
         if image is None or image.isNull():
-            r.setScaledSize(size.scaled(QSize(440, 440), Qt.AspectRatioMode.KeepAspectRatio)
-                            if size.isValid() else QSize())
-            r.setAutoTransform(True)
-            image = r.read()
+            image = codecs.read_qimage(path, 440)[0] if not codecs.is_video(path) else None
         else:
             rows.append((tr("Profondità colore"), f"{image.depth()} bit"))
-        del keep
         if image is not None and not image.isNull():
             pm = QPixmap.fromImage(image).scaled(self.preview.size() * self.devicePixelRatioF(),
                                                  Qt.AspectRatioMode.KeepAspectRatio,
                                                  Qt.TransformationMode.SmoothTransformation)
             pm.setDevicePixelRatio(self.devicePixelRatioF())
             self.preview.setPixmap(pm)
+        from . import library
+        r_, lb_ = library.get(path)
+        if r_ or lb_ or library.is_favorite(path):
+            rows.append((tr("Valutazione"), ("★" * r_ + "☆" * (5 - r_)) if r_ else "—"))
+            if lb_:
+                rows.append((tr("Etichetta"), library.label_name(lb_)))
+            if library.is_favorite(path):
+                rows.append((tr("Preferiti"), "♥"))
 
         ex = read_exif(path)
         if ex is None:

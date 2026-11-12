@@ -85,11 +85,8 @@ def edit_with_paint(path):
 
 # ------------------------------------------------------------------ immagini
 def read_image(path):
-    r, keep = image_reader(path)
-    r.setAutoTransform(True)
-    img = r.read()
-    del keep
-    return img
+    from .codecs import read_qimage
+    return read_qimage(path)[0]
 
 
 def set_wallpaper(parent, path):
@@ -221,6 +218,8 @@ def rename_single(parent, path):
                 os.rename(tmp, dst)
             else:
                 os.rename(path, dst)
+            from . import library
+            library.move_path(path, dst)
             return dst
         except OSError as e:
             QMessageBox.warning(parent, tr("Rinomina"), f"{name}: {e.strerror or e}")

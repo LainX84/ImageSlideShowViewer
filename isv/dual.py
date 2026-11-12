@@ -14,8 +14,8 @@ from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QDialogButtonBox,
 from . import APP_NAME
 from .archive import is_archive
 from .i18n import num, tr
-from .utils import list_images
-from .viewer import INTERVALS, Canvas
+from .utils import is_video, list_images
+from .viewer import INTERVALS, make_canvas
 
 AUTO, MANUAL = "auto", "manual"
 
@@ -151,11 +151,11 @@ class DualViewerWindow(QWidget):
         lay.setSpacing(4)
         self.sides = []
         for folder, mode in sides:
-            c = Canvas(self)
+            c = make_canvas(self)
             c.style_ = style
             c.show_info = settings.value("viewer/show_info", False, type=bool)
             c.installEventFilter(self)
-            imgs = list_images(folder, sort, rev)
+            imgs = [p for p in list_images(folder, sort, rev) if not is_video(p)]
             if shuffle:
                 random.shuffle(imgs)
             lay.addWidget(c, 1)
@@ -411,6 +411,8 @@ class DualViewerWindow(QWidget):
 
     def closeEvent(self, e):
         self.timer.stop()
+        for side in self.sides:
+            side.canvas.release_gpu()
         try:
             self.loader.ready.disconnect(self._on_ready)
         except (RuntimeError, TypeError):

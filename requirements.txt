@@ -1,2 +1,14 @@
-PySide6>=6.5
-Pillow
+# Image SlideShow Viewer 2.0 – Python 3.11 o più recente (provato con 3.14)
+PySide6>=6.8
+Pillow>=11.3            # EXIF, editor, conversione, AVIF
+pillow-heif>=1.0        # HEIC / HEIF
+pillow-jxl-plugin>=1.3  # JPEG XL
+rawpy>=0.24             # anteprima dei RAW delle fotocamere
+py7zr>=1.0              # archivi 7Z / CB7
+rarfile>=4.2            # archivi RAR / CBR (serve anche 7-Zip o UnRAR installato)
+numpy>=2.0              # istogramma, duplicati, supporto GPU NVIDIA
+certifi                 # certificati per scaricare il supporto GPU NVIDIA
+
+# Supporto GPU NVIDIA (decodifica JPEG): il programma lo propone e lo scarica da solo
+# all'avvio se trova una scheda NVIDIA (anche nella versione compilata).
+# Da sorgente si può installare anche così:  pip install "nvidia-nvimgcodec-cu12[nvjpeg]"

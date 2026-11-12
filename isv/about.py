@@ -9,6 +9,14 @@ from . import APP_NAME, AUTHOR, GITHUB_URL, LICENSE, REPO_URL, __version__
 from .i18n import tr
 
 
+def _formats():
+    try:
+        from .codecs import status_lines
+        return status_lines()
+    except Exception:  # noqa: BLE001
+        return []
+
+
 class AboutDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -21,13 +29,14 @@ class AboutDialog(QDialog):
         text = QLabel(
             f"<h2 style='margin-bottom:0'>{APP_NAME}</h2>"
             f"<p style='margin-top:2px'><b>{tr('Versione')} {__version__}</b></p>"
-            f"<p>{tr('Visualizzatore di immagini e slideshow in stile ACDSee, con browser a miniature, archivi CBZ/ZIP e operazioni in blocco.')}</p>"
+            f"<p>{tr('Visualizzatore di immagini e slideshow in stile ACDSee, con browser a miniature, archivi di fumetti, valutazioni, raccolte e operazioni in blocco.')}</p>"
             f"<p>{tr('Autore')}: <b>{AUTHOR}</b><br>"
             f"GitHub: <a href='{GITHUB_URL}'>{GITHUB_URL}</a><br>"
             f"{tr('Progetto')}: <a href='{REPO_URL}'>{REPO_URL}</a><br>"
             f"{tr('Licenza')}: {LICENSE}</p>"
             f"<p style='color:gray'>Python {platform.python_version()} · "
-            f"PySide6 {PySide6.__version__} · Qt {qVersion()} · {platform.system()} {platform.release()}</p>")
+            f"PySide6 {PySide6.__version__} · Qt {qVersion()} · {platform.system()} {platform.release()}<br>"
+            f"{' · '.join(_formats())}</p>")
         text.setTextFormat(Qt.TextFormat.RichText)
         text.setOpenExternalLinks(True)
         text.setWordWrap(True)

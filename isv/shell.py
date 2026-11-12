@@ -12,7 +12,9 @@ from .i18n import tr
 
 KEY = APP_ID                        # nome della voce nel registro
 ROOT = r"Software\Classes"
-ARCHIVES = (".cbz", ".zip")
+from .archive import ARCHIVE_EXTS
+
+ARCHIVES = tuple(sorted(ARCHIVE_EXTS))
 
 
 def supported():
@@ -20,8 +22,9 @@ def supported():
 
 
 def _image_exts():
-    from .utils import _WANTED
-    return ["." + e for e in _WANTED]
+    """Immagini (Qt, Pillow, RAW) e video, come le apre il programma."""
+    from .codecs import media_exts
+    return sorted(media_exts())
 
 
 def _launcher():

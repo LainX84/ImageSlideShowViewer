@@ -443,6 +443,15 @@ def plan(paths, ops, conflicts="block", ext_change="allow"):
     return [tuple(r) for r in rows], blocked
 
 
+def _library_moved(old, new):
+    """Valutazioni e raccolte seguono il file (se l'interfaccia è disponibile)."""
+    try:
+        from . import library
+        library.move_path(old, new)
+    except Exception:  # noqa: BLE001 - usato anche senza Qt (prove)
+        pass
+
+
 def apply_renames(pairs, tag="isvtmp"):
     """Rinomina in due passaggi (evita collisioni tipo 1→2, 2→3). Ritorna (fatti, errori)."""
     todo = [(o, n) for o, n in pairs if o != n]
@@ -459,6 +468,7 @@ def apply_renames(pairs, tag="isvtmp"):
         try:
             os.rename(tmp, n)
             done += 1
+            _library_moved(o, n)
         except OSError as e:
             errors.append(f"{os.path.basename(o)}: {e.strerror or e}")
             try:

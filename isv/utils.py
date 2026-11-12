@@ -5,36 +5,36 @@ import subprocess
 import sys
 from collections import namedtuple
 
-from PySide6.QtGui import QImageReader
-
 from . import archive
 
 FileItem = namedtuple("FileItem", "path name size mtime is_dir", defaults=(False,))
 
 _WANTED = ["jpg", "jpeg", "jpe", "jfif", "png", "gif", "bmp", "webp", "tif",
-           "tiff", "heic", "heif", "avif", "jxl", "tga", "ico"]
-_exts = None
+           "tiff", "heic", "heif", "avif", "jxl", "tga", "ico"]   # per il menu di Esplora risorse
+
+# I video compaiono nel browser e nello slideshow solo se attivato (opzione) e se c'è QtMultimedia
+SHOW_VIDEOS = True
 
 
 def image_exts():
-    """Estensioni immagine supportate dai plugin Qt installati."""
-    global _exts
-    if _exts is None:
-        sup = {bytes(f).decode("ascii", "ignore").lower()
-               for f in QImageReader.supportedImageFormats()}
-        ex = {e for e in _WANTED if e in sup}
-        if "jpg" in sup or "jpeg" in sup:
-            ex |= {"jpg", "jpeg", "jpe", "jfif"}
-        if "tif" in sup or "tiff" in sup:
-            ex |= {"tif", "tiff"}
-        if "heif" in sup or "heic" in sup:
-            ex |= {"heic", "heif"}
-        _exts = {"." + e for e in ex}
-    return _exts
+    """Estensioni immagine apribili (Qt, Pillow con i plugin, RAW)."""
+    from .codecs import image_exts as _ie
+    return _ie()
 
 
 def is_image(name):
-    return os.path.splitext(name)[1].lower() in image_exts()
+    from .codecs import ext_of
+    return ext_of(name) in image_exts()
+
+
+def is_video(name):
+    from .codecs import is_video as _iv
+    return SHOW_VIDEOS and _iv(name)
+
+
+def is_media(name):
+    """Immagine oppure video (se i video sono attivi)."""
+    return is_image(name) or is_video(name)
 
 
 def natural_key(s):
@@ -98,7 +98,7 @@ def list_image_items(folder, sort="name", reverse=False):
         with os.scandir(folder) as it:
             for e in it:
                 try:
-                    if not e.is_file() or not is_image(e.name):
+                    if not e.is_file() or not is_media(e.name):
                         continue
                     st = e.stat()
                 except OSError:
@@ -207,7 +207,7 @@ def find_cover(folder, max_folders=30):
     while stack and seen < max_folders:
         f = stack.pop()
         seen += 1
-        imgs = list_images(f)
+        imgs = [p for p in list_images(f) if not is_video(p)]
         if imgs:
             return imgs[0]
         stack.extend(reversed(list_subdirs(f)))
@@ -225,7 +225,7 @@ def has_images(folder):
         with os.scandir(folder) as it:
             for e in it:
                 try:
-                    if is_image(e.name) and e.is_file():
+                    if is_media(e.name) and e.is_file():
                         return True
                 except OSError:
                     continue

@@ -4,7 +4,7 @@ import os
 import shutil
 
 from PySide6.QtCore import QFile, Qt, QTimer
-from PySide6.QtGui import QBrush, QColor, QImage, QImageReader, QImageWriter, QPainter
+from PySide6.QtGui import QBrush, QColor, QImage, QPainter
 from PySide6.QtWidgets import (QApplication, QButtonGroup, QCheckBox,
                                QComboBox, QDialog, QDialogButtonBox, QFileDialog, QFormLayout,
                                QGridLayout, QGroupBox, QHBoxLayout, QHeaderView, QLabel,
@@ -45,45 +45,50 @@ def _report(parent, title, done, errors, verb):
 
 
 # ================================================================= CONVERTI
-FORMATS = [("JPEG", b"jpeg", ".jpg"), ("PNG", b"png", ".png"), ("WebP", b"webp", ".webp"),
-           ("BMP", b"bmp", ".bmp"), ("TIFF", b"tiff", ".tif")]
-
-
 def available_formats():
-    sup = {bytes(f).lower() for f in QImageWriter.supportedImageFormats()}
-    return [f for f in FORMATS if f[1] in sup]
+    """[(nome, chiave, estensione)]: Qt + Pillow (AVIF, HEIC, JPEG XL se installati)."""
+    from .codecs import write_formats
+    return write_formats()
 
 
-def convert_one(src, out_dir, fmt, ext, quality=90, max_side=0, exists="rename"):
+def convert_one(src, out_dir, fmt, ext, quality=90, max_side=0, exists="rename",
+                lossless=False, keep_exif=True):
     """Converte un'immagine. Ritorna il percorso scritto, None se saltata; solleva OSError."""
-    stem = os.path.splitext(os.path.basename(src))[0]
+    from . import codecs
+    stem = os.path.splitext(os.path.basename(src.split("|")[-1]))[0]
     dst = os.path.join(out_dir, stem + ext)
     if os.path.exists(dst) and not samepath(dst, src):
         if exists == "skip":
             return None
         if exists == "rename":
             dst = unique_path(dst)
-    r = QImageReader(src)
-    r.setAutoTransform(True)
-    img = r.read()
+    os.makedirs(out_dir, exist_ok=True)
+    if codecs.have_pillow():
+        try:
+            im, exif, icc = codecs.open_pil(src)
+        except Exception as e:  # noqa: BLE001 - formato che Pillow non legge: si passa da Qt
+            img, err = codecs.read_qimage(src)
+            if img.isNull():
+                raise OSError(err or str(e) or tr("lettura non riuscita")) from e
+            im, exif, icc = codecs.qimage_to_pil(img), None, None
+        if max_side and max(im.size) > max_side:
+            im.thumbnail((max_side, max_side))
+        codecs.save_pil(im, dst, fmt, quality, lossless, exif if keep_exif else None, icc)
+        return dst
+    img, err = codecs.read_qimage(src)
     if img.isNull():
-        raise OSError(r.errorString() or tr("lettura non riuscita"))
+        raise OSError(err or tr("lettura non riuscita"))
     if max_side and max(img.width(), img.height()) > max_side:
         img = img.scaled(max_side, max_side, Qt.AspectRatioMode.KeepAspectRatio,
                          Qt.TransformationMode.SmoothTransformation)
-    if fmt in (b"jpeg", b"bmp") and img.hasAlphaChannel():
+    if fmt in ("jpeg", "bmp") and img.hasAlphaChannel():
         flat = QImage(img.size(), QImage.Format.Format_RGB32)
         flat.fill(QColor(255, 255, 255))
         p = QPainter(flat)
         p.drawImage(0, 0, img)
         p.end()
         img = flat
-    os.makedirs(out_dir, exist_ok=True)
-    w = QImageWriter(dst, fmt)
-    if fmt in (b"jpeg", b"webp"):
-        w.setQuality(quality)
-    if not w.write(img):
-        raise OSError(w.errorString())
+    codecs.save_qimage(img, dst, fmt, quality, lossless)
     return dst
 
 
@@ -95,9 +100,16 @@ class ConvertDialog(QDialog):
         self.formats = available_formats()
         self.fmt = QComboBox()
         self.fmt.addItems([f[0] for f in self.formats])
-        self.fmt.setCurrentIndex(max(0, min(settings.value("batch/conv_fmt", 0, type=int),
-                                            len(self.formats) - 1)))
+        keys = [f[1] for f in self.formats]
+        last = settings.value("batch/conv_key", "jpeg")
+        self.fmt.setCurrentIndex(keys.index(last) if last in keys else 0)
         self.quality = QSpinBox(minimum=1, maximum=100, value=settings.value("batch/conv_q", 90, type=int))
+        self.lossless = QCheckBox(tr("Senza perdita (lossless)"))
+        self.lossless.setToolTip(tr("Per WebP, AVIF, HEIC e JPEG XL: nessuna perdita di qualità, file più grandi."))
+        self.lossless.setChecked(settings.value("batch/conv_lossless", False, type=bool))
+        self.keep_exif = QCheckBox(tr("Mantieni i dati EXIF e il profilo colore"))
+        self.keep_exif.setChecked(settings.value("batch/conv_exif", True, type=bool))
+        self.fmt.currentIndexChanged.connect(self._fmt_changed)
         self.resize_chk = QCheckBox(tr("Riduci se il lato lungo supera"))
         self.max_side = QSpinBox(minimum=16, maximum=20000, value=settings.value("batch/conv_side", 1920, type=int))
         self.max_side.setSuffix(" px")
@@ -123,17 +135,26 @@ class ConvertDialog(QDialog):
         self.del_orig = QCheckBox(tr("Sposta gli originali nel Cestino dopo la conversione"))
         self.del_orig.setToolTip(tr("Solo per i file convertiti senza errori; si possono "
                                     "recuperare dal Cestino."))
-        note = QLabel(tr("Nota: la conversione raddrizza le foto ruotate ma non copia i dati EXIF."))
+        from .codecs import have_pillow
+        note = QLabel(tr("Le foto ruotate vengono raddrizzate.") + ("" if have_pillow() else " " +
+                      tr("Senza Pillow i dati EXIF non vengono copiati.")))
         note.setStyleSheet("color: gray")
+        if not have_pillow():
+            self.keep_exif.setEnabled(False)
         form = QFormLayout()
         form.addRow(tr("Formato:"), self.fmt)
-        form.addRow(tr("Qualità (JPEG/WebP):"), self.quality)
+        q = QHBoxLayout()
+        q.addWidget(self.quality)
+        q.addWidget(self.lossless)
+        q.addStretch()
+        form.addRow(tr("Qualità:"), q)
         form.addRow(tr("Dimensioni:"), rs)
         out = QVBoxLayout(); out.addLayout(l1); out.addLayout(l2); out.addWidget(self.r_same)
         ow = QWidget(); ow.setLayout(out)
         form.addRow(tr("Salva in:"), ow)
         form.addRow(tr("Se il file esiste:"), self.exists)
         form.addRow(tr("Originali:"), self.del_orig)
+        form.addRow("", self.keep_exif)
         bb = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         bb.button(QDialogButtonBox.StandardButton.Ok).setText(tr("Converti"))
         bb.accepted.connect(self.accept)
@@ -142,6 +163,17 @@ class ConvertDialog(QDialog):
         lay.addLayout(form)
         lay.addWidget(note)
         lay.addWidget(bb)
+
+    def _fmt_changed(self, *_):
+        from .codecs import LOSSLESS_OPTION, LOSSY
+        key = self.formats[self.fmt.currentIndex()][1] if self.formats else ""
+        self.quality.setEnabled(key in LOSSY and not (self.lossless.isChecked() and key in LOSSLESS_OPTION))
+        self.lossless.setEnabled(key in LOSSLESS_OPTION)
+
+    def showEvent(self, e):
+        super().showEvent(e)
+        self.lossless.toggled.connect(self._fmt_changed)
+        self._fmt_changed()
 
     def _browse(self):
         d = QFileDialog.getExistingDirectory(self, tr("Cartella di destinazione"), self.dir_edit.text())
@@ -156,11 +188,13 @@ class ConvertDialog(QDialog):
         if self.exec() != QDialog.DialogCode.Accepted:
             return False
         s = self.settings
-        s.setValue("batch/conv_fmt", self.fmt.currentIndex())
+        s.setValue("batch/conv_key", self.formats[self.fmt.currentIndex()][1])
         s.setValue("batch/conv_q", self.quality.value())
         s.setValue("batch/conv_side", self.max_side.value())
         s.setValue("batch/conv_sub", self.sub_name.text())
         s.setValue("batch/conv_dir", self.dir_edit.text())
+        s.setValue("batch/conv_lossless", self.lossless.isChecked())
+        s.setValue("batch/conv_exif", self.keep_exif.isChecked())
         _, fmt, ext = self.formats[self.fmt.currentIndex()]
         side = self.max_side.value() if self.resize_chk.isChecked() else 0
         policy = ["rename", "skip", "overwrite"][self.exists.currentIndex()]
@@ -175,7 +209,7 @@ class ConvertDialog(QDialog):
             prog.setLabelText(os.path.basename(p))
             prog.setValue(i)
             QApplication.processEvents()
-            src_dir = os.path.dirname(p)
+            src_dir = os.path.dirname(p.split("|")[0]) if "|" in p else os.path.dirname(p)
             if self.r_sub.isChecked():
                 out_dir = os.path.join(src_dir, self.sub_name.text().strip() or tr("convertite"))
             elif self.r_dir.isChecked():
@@ -183,7 +217,9 @@ class ConvertDialog(QDialog):
             else:
                 out_dir = src_dir
             try:
-                dst = convert_one(p, out_dir, fmt, ext, self.quality.value(), side, policy)
+                dst = convert_one(p, out_dir, fmt, ext, self.quality.value(), side, policy,
+                                  self.lossless.isChecked() and self.lossless.isEnabled(),
+                                  self.keep_exif.isChecked())
                 if dst:
                     done += 1
                     if self.del_orig.isChecked() and not samepath(dst, p):
@@ -227,6 +263,8 @@ def copy_move_files(paths, dest, move=False, exists="rename", progress=None):
         try:
             if move:
                 shutil.move(p, dst)
+                from . import library
+                library.move_path(p, dst)
             elif os.path.isdir(p):
                 shutil.copytree(p, dst, dirs_exist_ok=(exists == "overwrite"))
             else:

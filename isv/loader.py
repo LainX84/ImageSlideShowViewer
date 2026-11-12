@@ -4,26 +4,36 @@ from collections import OrderedDict
 from PySide6.QtCore import QObject, Signal
 from PySide6.QtGui import QImage
 
-from .archive import image_reader
+from . import codecs, gpu, gpudecode
+from .archive import is_virtual, read_bytes, stat_any
 from .worker import BgWorker
 
 
 _SKIPPED = "__skipped__"
+VIDEO = "__video__"      # i video non passano dal caricatore: li riproduce video.py
 
 
 def _read(path, wanted):
     if path not in wanted:  # l'utente è già andato oltre: non perdere tempo a decodificare
         return path, QImage(), _SKIPPED
+    if codecs.is_video(path):
+        return path, QImage(), VIDEO
+    img = _read_gpu(path)
+    if img is not None:
+        return path, gpu.prepare_image(img), ""
+    img, err = codecs.read_qimage(path)   # Qt, Pillow (HEIC/AVIF/JXL) o anteprima RAW
+    return path, gpu.prepare_image(img), err
+
+
+def _read_gpu(path):
+    """JPEG grandi decodificati dalla GPU NVIDIA (se attivato e disponibile)."""
     try:
-        r, _keep = image_reader(path)
-    except Exception as e:  # noqa: BLE001 - archivio danneggiato, file sparito...
-        from .i18n import tr
-        return path, QImage(), str(e) or tr("Impossibile leggere il file")
-    r.setAutoTransform(True)  # rispetta l'orientamento EXIF
-    img = r.read()
-    from .i18n import tr
-    err = "" if not img.isNull() else (r.errorString() or tr("Formato non leggibile"))
-    return path, img, err
+        if not gpudecode.wants(path, stat_any(path)[1]):
+            return None
+        data = read_bytes(path) if is_virtual(path) else path
+    except Exception:  # noqa: BLE001
+        return None
+    return gpudecode.decode(data)
 
 
 class ImageLoader(QObject):

@@ -68,20 +68,122 @@ class App:
                 self.browser.reveal(path)
         return self.browser
 
-    def open_viewer(self, nav, slideshow=False):
+    def _slideshow_screen(self):
+        """Schermo scelto nelle opzioni per lo slideshow (None = quello della finestra)."""
+        from PySide6.QtGui import QGuiApplication
+        choice = self.settings.value("slideshow/screen", "window")
+        screens = QGuiApplication.screens()
+        if choice == "primary":
+            return QGuiApplication.primaryScreen()
+        if choice == "secondary":
+            prim = QGuiApplication.primaryScreen()
+            others = [s for s in screens if s is not prim]
+            return others[0] if others else None
+        for s in screens:
+            if s.name() == choice:
+                return s
+        if self.browser is not None and self.browser.isVisible():
+            return self.browser.screen()
+        return None
+
+    def _place(self, w, fullscreen):
+        sc = self._slideshow_screen() if fullscreen else None
+        if sc is not None:
+            w.setScreen(sc)
+            w.move(sc.geometry().topLeft())
+            w.resize(sc.geometry().size() * 0.8)
+
+    def open_viewer(self, nav, slideshow=False, screensaver=False):
         from .viewer import ViewerWindow
-        v = ViewerWindow(nav, self.loader, self.settings, slideshow=slideshow)
+        v = ViewerWindow(nav, self.loader, self.settings, slideshow=slideshow, screensaver=screensaver)
         v.to_browser.connect(self.show_browser)
         v.closed.connect(lambda p, v=v: self._viewer_closed(v, p))
         v.files_changed.connect(self._files_changed)
+        v.webtoon_requested.connect(self.open_webtoon)
         self.viewers.append(v)
         if slideshow or self.settings.value("viewer/fullscreen", False, type=bool):
+            self._place(v, True)
             v.showFullScreen()
             v.cursor_timer.start()
         else:
             v.showMaximized()
         v.activateWindow()
         return v
+
+    def open_webtoon(self, paths, start=0):
+        from .webtoon import WebtoonView
+        w = WebtoonView(paths, start, self.settings)
+        w.closed.connect(lambda p, w=w: self._webtoon_closed(w, p))
+        self.viewers.append(w)
+        self._place(w, True)
+        w.showMaximized()
+        w.activateWindow()
+        return w
+
+    def _webtoon_closed(self, w, path):
+        if w in self.viewers:
+            self.viewers.remove(w)
+        if self.browser is not None and self.browser.isVisible() and path:
+            self.browser.reveal(path)
+
+    def open_compare(self, a, b):
+        from .compare import CompareWindow
+        w = CompareWindow(a, b)
+        if not w.ok:
+            from PySide6.QtWidgets import QMessageBox
+            QMessageBox.warning(self.browser, APP_NAME, i18n.tr("Impossibile aprire le immagini da confrontare."))
+            w.deleteLater()
+            return None
+        w.show()
+        return w
+
+    def offer_nvidia(self):
+        """Con una scheda NVIDIA propone (all'avvio) di scaricare il supporto per la GPU."""
+        from . import gpudecode, nvsupport
+        s = self.settings
+        if s.value("nvidia/offer", "ask") == "never" or not nvsupport.supported():
+            return
+        if nvsupport.installed() or not nvsupport.driver_present() or gpudecode.available():
+            return
+        from PySide6.QtWidgets import QMessageBox
+        parent = self.browser if self.browser is not None and self.browser.isVisible() else None
+        name = nvsupport.gpu_name()
+        box = QMessageBox(parent)
+        box.setWindowTitle(APP_NAME)
+        box.setIcon(QMessageBox.Icon.Question)
+        box.setText(i18n.tr("Hai una scheda NVIDIA{name}.", name=f" ({name})" if name else ""))
+        box.setInformativeText(i18n.tr(
+            "Vuoi scaricare il supporto per decodificare i JPEG grandi con la scheda video?\n"
+            "Sono le librerie ufficiali NVIDIA (nvImageCodec e nvJPEG, circa 25 MB), prese da PyPI.\n\n"
+            "Si può fare anche dopo, o togliere, da Opzioni → Animazioni e GPU."))
+        b_yes = box.addButton(i18n.tr("Scarica e installa"), QMessageBox.ButtonRole.AcceptRole)
+        box.addButton(i18n.tr("Più tardi"), QMessageBox.ButtonRole.RejectRole)
+        b_never = box.addButton(i18n.tr("Non chiedere più"), QMessageBox.ButtonRole.DestructiveRole)
+        box.setDefaultButton(b_yes)
+        box.exec()
+        if box.clickedButton() is b_never:
+            s.setValue("nvidia/offer", "never")
+        elif box.clickedButton() is b_yes:
+            from .options import install_nvidia
+            install_nvidia(parent, s)
+
+    def start_screensaver(self):
+        """Slideshow casuale a schermo intero (salvaschermo)."""
+        if any(getattr(v, "screensaver", False) for v in self.viewers):
+            return
+        s = self.settings
+        folder = s.value("screensaver/folder", "") or s.value("browser/last_folder", "")
+        if not folder or not os.path.isdir(folder):
+            return
+        from .navigator import Navigator
+        try:
+            nav = Navigator(folder, include_sub=s.value("screensaver/subfolders", True, type=bool),
+                            shuffle=True, loop=True)
+        except Exception:  # noqa: BLE001
+            return
+        if nav.current() is None:
+            return
+        self.open_viewer(nav, slideshow=True, screensaver=True)
 
     def open_dual(self, left="", right="", parent=None):
         from .dual import DualDialog, DualViewerWindow
@@ -142,6 +244,9 @@ class App:
             self.browser.activateWindow()
 
     def _files_changed(self, folder):
+        if self.browser is not None and self.browser.virtual is not None:
+            self.browser.reload()
+            return
         if self.browser is not None and self.browser.folder:
             from .utils import samepath
             if samepath(folder, self.browser.folder):
@@ -172,6 +277,8 @@ def main(argv=None):
     argv = sys.argv if argv is None else argv
     QApplication.setHighDpiScaleFactorRoundingPolicy(
         Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
+    from . import gpu, gpudecode
+    gpu.configure(open_settings())   # OpenGL hardware / software / CPU: prima di QApplication
     qapp = QApplication(argv)
     qapp.setApplicationName(APP_ID)
     qapp.setApplicationDisplayName(APP_NAME)
@@ -184,12 +291,16 @@ def main(argv=None):
     QImageReader.setAllocationLimit(2048)  # MB: consente foto molto grandi
 
     settings = open_settings()
+    gpudecode.set_enabled(settings.value("gpu/nvjpeg", False, type=bool))
+    from . import utils as _utils
+    _utils.SHOW_VIDEOS = settings.value("slideshow/videos", True, type=bool)
     i18n.init(settings)  # prima di creare qualsiasi finestra
     from . import theme
     theme.init(qapp, settings)  # chiaro / scuro / automatico
 
     args = argv[1:]
     action = None
+    args = [a for a in args if a != "--screensaver"]
     for flag in ("--slideshow", "--rename", "--convert"):
         if flag in args:
             action = flag[2:]
@@ -208,8 +319,20 @@ def main(argv=None):
         return run_shell_action(app, action, paths)
 
     app = App(qapp, settings)
+    from .screensaver import IdleMonitor
+    from .undo import manager as undo_manager
+    qapp.aboutToQuit.connect(undo_manager.flush)     # eliminati in sospeso -> Cestino
+    app.idle = IdleMonitor(qapp, settings, app.start_screensaver)
+    if "--screensaver" in argv:
+        f = paths[0] if paths and os.path.isdir(paths[0]) else None
+        if f:
+            settings.setValue("screensaver/folder", os.path.abspath(f))
+        app.start_screensaver()
+        qapp._isv = app
+        return qapp.exec()
     target = paths[0] if paths else None
-    if target and os.path.isfile(target) and is_image(target):
+    from .utils import is_media
+    if target and os.path.isfile(target) and is_media(target):
         # Doppio clic su un file da Esplora risorse: apre subito il visualizzatore.
         from .navigator import Navigator
         target = os.path.abspath(target)
@@ -220,5 +343,7 @@ def main(argv=None):
         app.open_viewer(Navigator(os.path.abspath(target)))
     else:
         app.show_browser(os.path.abspath(target) if target and os.path.isdir(target) else None)
+    from PySide6.QtCore import QTimer
+    QTimer.singleShot(2500, app.offer_nvidia)
     qapp._isv = app
     return qapp.exec()

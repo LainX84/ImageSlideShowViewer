@@ -4,16 +4,18 @@ import os
 import time
 from collections import OrderedDict
 
-from PySide6.QtCore import QAbstractListModel, QModelIndex, QRect, QRectF, QSize, QStandardPaths, Qt
+from PySide6.QtCore import QAbstractListModel, QModelIndex, QObject, QRect, QRectF, QSize, QStandardPaths, Qt
 from PySide6.QtGui import QColor, QIcon, QImage, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import QStyle, QStyledItemDelegate
 
-from .archive import image_reader, is_archive, stat_any
+from . import anim, codecs
+from .archive import is_archive, stat_any
 from .i18n import tr
 from .utils import find_cover, human_size
 from .worker import BgWorker
 
 THUMB_PX = 240
+VIDEO_PENDING = "video"
 MEM_CACHE = 1500
 
 
@@ -56,8 +58,27 @@ def trim_cache(cdir, max_mb=CACHE_MAX_MB, keep_mb=CACHE_KEEP_MB):
     return removed
 
 
+def _cache_key(path, mtime, size):
+    return hashlib.sha1(f"{path}|{mtime}|{size}|{THUMB_PX}".encode("utf-8", "surrogatepass")).hexdigest()
+
+
+def store_thumbnail(img, path, mtime, size, cdir):
+    """Salva nella cache su disco una miniatura ottenuta altrove (fotogramma di un video)."""
+    key = _cache_key(path, mtime, size)
+    sub = os.path.join(cdir, key[:2])
+    if img.width() > THUMB_PX or img.height() > THUMB_PX:
+        img = img.scaled(THUMB_PX, THUMB_PX, Qt.AspectRatioMode.KeepAspectRatio,
+                         Qt.TransformationMode.SmoothTransformation)
+    try:
+        os.makedirs(sub, exist_ok=True)
+        img.save(os.path.join(sub, key + ".jpg"), "JPG", 85)
+    except OSError:
+        pass
+    return img
+
+
 def make_thumbnail(path, mtime, size, cdir):
-    key = hashlib.sha1(f"{path}|{mtime}|{size}|{THUMB_PX}".encode("utf-8", "surrogatepass")).hexdigest()
+    key = _cache_key(path, mtime, size)
     sub = os.path.join(cdir, key[:2])
     for ext in (".jpg", ".png"):
         cp = os.path.join(sub, key + ext)
@@ -69,12 +90,9 @@ def make_thumbnail(path, mtime, size, cdir):
                 except OSError:
                     pass
                 return img
-    r, _keep = image_reader(path)
-    r.setAutoTransform(True)
-    sz = r.size()
-    if sz.isValid() and (sz.width() > THUMB_PX or sz.height() > THUMB_PX):
-        r.setScaledSize(sz.scaled(THUMB_PX, THUMB_PX, Qt.AspectRatioMode.KeepAspectRatio))
-    img = r.read()
+    if codecs.is_video(path):
+        return VIDEO_PENDING        # il fotogramma lo estrae video.VideoThumbnailer
+    img, _err = codecs.read_qimage(path, THUMB_PX)
     if img.isNull():
         return img
     if img.width() > THUMB_PX or img.height() > THUMB_PX:
@@ -107,6 +125,7 @@ def _placeholder(broken=False):
 class ThumbModel(QAbstractListModel):
     PathRole = Qt.ItemDataRole.UserRole + 1
     IsDirRole = Qt.ItemDataRole.UserRole + 2
+    MetaRole = Qt.ItemDataRole.UserRole + 3
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -121,6 +140,10 @@ class ThumbModel(QAbstractListModel):
         threading.Thread(target=trim_cache, args=(self.cdir,), daemon=True).start()
         self.placeholder = _placeholder()
         self.broken = _placeholder(True)
+        self.live = None        # (percorso, QIcon): fotogramma corrente della GIF/WebP selezionata
+        self.meta = {}          # percorso -> (stelle, etichetta)
+        self.favs = set()
+        self.videos = None      # VideoThumbnailer, creato al primo video
 
     @staticmethod
     def _key(it):
@@ -133,7 +156,28 @@ class ThumbModel(QAbstractListModel):
         self.rows = {it.path: i for i, it in enumerate(self.items)}
         self.requested.clear()
         self.failed.clear()
+        self.live = None
+        if self.videos is not None:
+            self.videos.clear()
+        files = [it.path for it in self.items if not it.is_dir]
+        try:
+            from . import library
+            self.meta = library.get_many(files)
+            self.favs = library.favorites_among(files)
+        except Exception:  # noqa: BLE001 - database non disponibile
+            self.meta, self.favs = {}, set()
         self.endResetModel()
+
+    def refresh_meta(self, paths):
+        from . import library
+        self.meta.update({p: library.get(p) for p in paths})
+        fav = library.favorites_among(paths)
+        for p in paths:
+            (self.favs.add if p in fav else self.favs.discard)(p)
+            row = self.rows.get(p)
+            if row is not None:
+                idx = self.index(row)
+                self.dataChanged.emit(idx, idx, [self.MetaRole])
 
     def rowCount(self, parent=QModelIndex()):
         return 0 if parent.isValid() else len(self.items)
@@ -145,6 +189,8 @@ class ThumbModel(QAbstractListModel):
         if role == Qt.ItemDataRole.DisplayRole:
             return it.name
         if role == Qt.ItemDataRole.DecorationRole:
+            if self.live is not None and self.live[0] == it.path:
+                return self.live[1]
             k = self._key(it)
             icon = self.icons.get(k)
             if icon is not None:
@@ -158,6 +204,9 @@ class ThumbModel(QAbstractListModel):
             return self.placeholder
         if role == self.IsDirRole:
             return it.is_dir
+        if role == self.MetaRole:
+            r, lb = self.meta.get(it.path, (0, 0))
+            return (r, lb, it.path in self.favs, not it.is_dir and codecs.is_video(it.path))
         if role == Qt.ItemDataRole.ToolTipRole and it.is_dir:
             kind = tr("Archivio") if is_archive(it.name) else tr("Cartella")
             return f"{it.name}\n{kind} – " + tr("doppio clic per aprirla, F5 per lo slideshow")
@@ -190,6 +239,13 @@ class ThumbModel(QAbstractListModel):
         if row is None:
             return
         it = self.items[row]
+        if isinstance(img, str):        # video: il fotogramma si estrae nel thread principale
+            if self.videos is None:
+                from .video import VideoThumbnailer
+                self.videos = VideoThumbnailer(self)
+                self.videos.done.connect(self._video_done)
+            self.videos.request(path)
+            return
         if img.isNull():
             self.failed.add(path)
         else:
@@ -199,6 +255,29 @@ class ThumbModel(QAbstractListModel):
                 self.requested.discard(old.rsplit("|", 1)[0])
         idx = self.index(row)
         self.dataChanged.emit(idx, idx, [Qt.ItemDataRole.DecorationRole])
+
+    def _video_done(self, path, img):
+        row = self.rows.get(path)
+        if row is None:
+            return
+        it = self.items[row]
+        if img.isNull():
+            self.failed.add(path)
+        else:
+            img = store_thumbnail(img, it.path, it.mtime, it.size, self.cdir)
+            self.icons[self._key(it)] = QIcon(QPixmap.fromImage(img))
+        idx = self.index(row)
+        self.dataChanged.emit(idx, idx, [Qt.ItemDataRole.DecorationRole])
+
+    def set_live(self, path, icon):
+        """Mostra icon al posto della miniatura di path (None = torna alla miniatura)."""
+        old = self.live[0] if self.live else None
+        self.live = (path, icon) if path and icon is not None else None
+        for p in {old, path}:
+            row = self.rows.get(p) if p else None
+            if row is not None:
+                idx = self.index(row)
+                self.dataChanged.emit(idx, idx, [Qt.ItemDataRole.DecorationRole])
 
     def path(self, row):
         return self.items[row].path
@@ -247,6 +326,7 @@ class ThumbDelegate(QStyledItemDelegate):
                                is_archive(index.data(Qt.ItemDataRole.DisplayRole) or ""))
         elif isinstance(icon, QIcon):
             icon.paint(p, icon_rect, Qt.AlignmentFlag.AlignCenter)
+            self._paint_badges(p, icon_rect, index.data(ThumbModel.MetaRole))
         fm = option.fontMetrics
         text_rect = QRect(r.x() + 4, icon_rect.bottom() + 5, r.width() - 8, fm.height())
         name = fm.elidedText(index.data(Qt.ItemDataRole.DisplayRole) or "",
@@ -254,6 +334,51 @@ class ThumbDelegate(QStyledItemDelegate):
         p.setPen(option.palette.highlightedText().color() if sel else option.palette.text().color())
         p.drawText(text_rect, Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter, name)
         p.restore()
+
+    @staticmethod
+    def _paint_badges(p, r, meta):
+        """Stelle, etichetta colorata, Preferiti e simbolo dei video sulla miniatura."""
+        if not meta:
+            return
+        rating, label, fav, video = meta
+        from PySide6.QtGui import QFont, QPainterPath
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        if label:
+            from .library import label_color
+            path = QPainterPath()
+            path.addRoundedRect(QRectF(r.x() + 4, r.y() + 4, 14, 14), 7, 7)
+            p.fillPath(path, QColor(label_color(label)))
+            p.setPen(QPen(QColor(255, 255, 255, 200), 1.5))
+            p.drawPath(path)
+        f = QFont(p.font())
+        f.setPointSize(max(7, r.width() // 18))
+        p.setFont(f)
+        if fav:
+            p.setPen(QColor(0, 0, 0, 160))
+            p.drawText(QRect(r.right() - 25, r.y() + 3, 22, 20), Qt.AlignmentFlag.AlignCenter, "♥")
+            p.setPen(QColor(235, 70, 90))
+            p.drawText(QRect(r.right() - 26, r.y() + 2, 22, 20), Qt.AlignmentFlag.AlignCenter, "♥")
+        if rating:
+            txt = "★" * rating
+            fm = p.fontMetrics()
+            w = fm.horizontalAdvance(txt) + 8
+            box = QRectF(r.x() + 3, r.bottom() - fm.height() - 4, w, fm.height() + 2)
+            path = QPainterPath()
+            path.addRoundedRect(box, 4, 4)
+            p.fillPath(path, QColor(0, 0, 0, 150))
+            p.setPen(QColor(255, 205, 60))
+            p.drawText(box, Qt.AlignmentFlag.AlignCenter, txt)
+        if video:
+            c = r.center()
+            path = QPainterPath()
+            path.addEllipse(QRectF(c.x() - 18, c.y() - 18, 36, 36))
+            p.fillPath(path, QColor(0, 0, 0, 140))
+            tri = QPainterPath()
+            tri.moveTo(c.x() - 6, c.y() - 10)
+            tri.lineTo(c.x() + 11, c.y())
+            tri.lineTo(c.x() - 6, c.y() + 10)
+            tri.closeSubpath()
+            p.fillPath(tri, QColor(255, 255, 255, 230))
 
     @staticmethod
     def _paint_folder(p, r, icon, archive=False):
@@ -269,3 +394,57 @@ class ThumbDelegate(QStyledItemDelegate):
         if isinstance(icon, QIcon):
             inner = body.adjusted(w * 0.06, h * 0.07, -w * 0.06, -h * 0.07).toRect()
             icon.paint(p, inner, Qt.AlignmentFlag.AlignCenter)
+
+
+class ThumbAnimator(QObject):
+    """Anima nel browser la miniatura della GIF / WebP selezionata."""
+
+    def __init__(self, model, parent=None):
+        super().__init__(parent)
+        self.model = model
+        self.worker = BgWorker(1, self)
+        self.movie = None
+        self.path = None
+
+    def play(self, path):
+        if path == self.path:
+            return
+        self.stop()
+        self.path = path
+        if not path or not anim.maybe_animated(path):
+            return
+        self.worker.cancel_pending()
+        # contare i fotogrammi di una GIF grande può richiedere un attimo: in background
+        self.worker.submit(lambda p=path: (p, anim.probe(p)), self._probed)
+
+    def _probed(self, res):
+        if isinstance(res, Exception):
+            return
+        path, size = res
+        if path != self.path or size is None:
+            return
+        m = anim.make_movie(path, self)
+        if m is None:
+            return
+        small = anim.fit_size(size, THUMB_PX)
+        if small.isValid():
+            m.setScaledSize(small)      # i fotogrammi si decodificano già piccoli
+        m.frameChanged.connect(self._frame)
+        self.movie = m
+        m.start()
+
+    def _frame(self, _n):
+        if self.movie is None:
+            return
+        img = self.movie.currentImage()
+        if not img.isNull():
+            self.model.set_live(self.path, QIcon(QPixmap.fromImage(img)))
+
+    def stop(self):
+        if self.movie is not None:
+            self.movie.stop()
+            self.movie.deleteLater()
+            self.movie = None
+        if self.path is not None:
+            self.model.set_live(None, None)
+        self.path = None
