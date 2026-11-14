@@ -15,6 +15,12 @@ fumetti (CBZ, CBR, CB7), valutazioni e raccolte, ritocchi rapidi e operazioni in
 
 ---
 
+## Novità della versione 2.1
+
+- **Decodifica multithread**: AVIF, HEIC e JPEG XL usano tutti i core, e più immagini vengono decodificate in parallelo.
+- **Precaricamento** delle immagini vicine (di serie 2 successive e 1 precedente, regolabili): il cambio immagine è istantaneo. Entrambe le opzioni sono in *Opzioni → Animazioni, GPU e prestazioni*.
+- **Conversione in blocco** più veloce (più file in parallelo), con **"tieni il file convertito solo se è più piccolo"**, data di modifica conservata e riepilogo dello spazio risparmiato. **JPEG → JPEG XL senza perdita** ricomprime il JPEG (circa -20%) in modo che si possa riottenere identico bit per bit.
+
 ## Novità della versione 2.0.1
 
 - **Video**: ora partono **con l'audio**, con un pulsante 🔊/🔇 (tasto **A**) e un cursore del **volume** che regola solo questo programma, non il volume del sistema (anche Maiusc+↑ / Maiusc+↓).
@@ -97,8 +103,8 @@ Il workflow `.github/workflows/build.yml` compila il programma per **Windows x64
 - con un **tag** che inizia per `v` li pubblica anche come **Release**:
 
 ```
-git tag v2.0.1
-git push origin v2.0.1
+git tag v2.1.0
+git push origin v2.1.0
 ```
 
 ## Menu contestuale di Esplora risorse
@@ -309,7 +315,7 @@ Se l'immagine non ha dati EXIF lo dice e mostra comunque le altre informazioni. 
 - **Avvisi e aspetto**: nome della cartella al cambio (posizione, durata), altri avvisi, indicatore "In pausa", colori e dimensione del testo con anteprima, barra dei comandi.
 - **Slideshow**: transizione e durata, zoom del Ken Burns, musica di sottofondo, pagine doppie da sole, ultima pagina letta degli archivi, video sì/no, schermo dello slideshow.
 - **Visualizzatore**: eliminazione rapida senza conferma, audio dei video, ingrandimento della lente.
-- **Animazioni e GPU**: animazioni (slideshow in pausa, 2 affiancate, miniatura del browser), metodo di disegno, supporto GPU NVIDIA (installa, reinstalla, rimuovi) e decodifica JPEG sulla GPU.
+- **Animazioni, GPU e prestazioni**: animazioni (slideshow in pausa, 2 affiancate, miniatura del browser), metodo di disegno, supporto GPU NVIDIA (installa, reinstalla, rimuovi), decodifica JPEG sulla GPU, **decodifica multithread** (AVIF, HEIC e JPEG XL su tutti i core, più immagini in parallelo) e **precaricamento** delle immagini vicine (quante successive e quante precedenti; predefinito 2 e 1).
 - **Smistamento**: le cartelle dei tasti 1–9, sposta o copia.
 - **Salvaschermo**: vedi sotto.
 - **Formati**: cosa è disponibile (HEIC, AVIF, JPEG XL, RAW, video, 7Z, RAR) e come aggiungere quello che manca.
@@ -324,7 +330,7 @@ In *Opzioni → Salvaschermo* puoi far partire, dopo un certo tempo senza usare 
 
 ## Accelerazione GPU
 
-*Opzioni → Animazioni e GPU → Disegno immagini* (la modifica vale dal riavvio successivo):
+*Opzioni → Animazioni, GPU e prestazioni → Disegno immagini* (la modifica vale dal riavvio successivo):
 
 | Scelta | Cosa usa |
 |---|---|
@@ -338,7 +344,7 @@ Con OpenGL ogni immagine viene caricata una volta nella memoria della scheda vid
 **Decodifica JPEG su GPU NVIDIA** (Windows x64 e Linux x64, libreria proprietaria NVIDIA). Le librerie non sono incluse nel programma, perché servono solo a chi ha una scheda NVIDIA:
 
 - all'avvio, se il programma trova il driver NVIDIA, propone **una volta** di scaricarle: *Scarica e installa*, *Più tardi* (lo richiede al prossimo avvio) o *Non chiedere più*;
-- in *Opzioni → Animazioni e GPU → Supporto GPU NVIDIA* si vede la scheda trovata e cosa è installato, con i pulsanti **Installa / Reinstalla** e **Rimuovi**;
+- in *Opzioni → Animazioni, GPU e prestazioni → Supporto GPU NVIDIA* si vede la scheda trovata e cosa è installato, con i pulsanti **Installa / Reinstalla** e **Rimuovi**;
 - il programma scarica i pacchetti ufficiali `nvidia-nvimgcodec-cu12` e `nvidia-nvjpeg-cu12` da PyPI (circa 25 MB), ne controlla l'impronta SHA-256 e tiene solo il necessario (decoder JPEG per la versione di Python in uso, circa 25 MB su disco) nella cartella dei dati del programma. Non serve pip, quindi funziona anche con il programma compilato;
 - dopo l'installazione la decodifica si attiva da sola (*Decodifica i JPEG grandi con la GPU NVIDIA*); dietro un proxy aziendale si può indicare il certificato con la variabile `SSL_CERT_FILE`.
 
@@ -368,7 +374,7 @@ I nomi non validi per Windows (caratteri `< > : " / \ | ? *`, punto o spazio fin
 
 ## Altre operazioni in blocco
 
-- **Converti**: salva in **JPEG, PNG, WebP, AVIF, HEIC, JPEG XL, TIFF, BMP o GIF**, con qualità, modalità **senza perdita** (WebP, AVIF, HEIC, JPEG XL) e riduzione del lato lungo regolabili, in una sottocartella, in un'altra cartella o accanto agli originali. Le foto vengono raddrizzate secondo l'EXIF e i **dati EXIF e il profilo colore vengono conservati**. A scelta, dopo la conversione gli originali vanno nel Cestino.
+- **Converti**: salva in **JPEG, PNG, WebP, AVIF, HEIC, JPEG XL, TIFF, BMP o GIF**, con qualità, modalità **senza perdita** (WebP, AVIF, HEIC, JPEG XL) e riduzione del lato lungo regolabili, in una sottocartella, in un'altra cartella o accanto agli originali. Le foto vengono raddrizzate secondo l'EXIF e i **dati EXIF e il profilo colore vengono conservati**. A scelta, dopo la conversione gli originali vanno nel Cestino. La conversione lavora su **più file in parallelo**, può **tenere il file nuovo solo se è più piccolo** dell'originale (per recuperare spazio), **conserva la data di modifica** e alla fine mostra lo spazio risparmiato. **JPEG → JPEG XL senza perdita** ricomprime il JPEG (circa -20%) in modo che si possa riottenere identico bit per bit.
 - **Converti archivio in CBZ**: vedi *Fumetti e manga*.
 - **Copia / Sposta** (anche cartelle intere): se un file esiste già nella destinazione, puoi aggiungere un numero al nome, sovrascrivere o saltarlo.
 - **Elimina**: sposta file o cartelle nel Cestino; **Ctrl+Z** annulla.
@@ -442,6 +448,7 @@ isv/options.py               finestra Opzioni
 isv/about.py, theme.py       finestra Informazioni, tema chiaro / scuro
 isv/i18n.py, lang_en.py      traduzioni
 isv/loader.py, worker.py     caricamento e precaricamento immagini, lavori in background
+isv/perf.py                  decodifica multithread e precaricamento (opzioni)
 isv/utils.py                 elenco file, ordinamento, navigazione cartelle
 ```
 

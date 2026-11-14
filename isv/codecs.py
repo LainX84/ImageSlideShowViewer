@@ -32,6 +32,7 @@ _qt_exts = None
 _pil_exts = None        # estensione -> formato Pillow
 _pil_write = None       # nome formato Pillow -> True
 _video_ok = None
+_decode_threads = 0     # 0 = tutti i core, 1 = un solo thread (vedi perf.py)
 
 
 # ------------------------------------------------------------------- formati
@@ -93,6 +94,35 @@ def _init_pillow():
             pass
         Image.init()
         _pil_exts, _pil_write = exts, write
+        _apply_decode_threads()
+
+
+def set_decode_threads(n):
+    """Thread usati da ogni decodifica AVIF / HEIC / JPEG XL: 0 = tutti i core, 1 = uno solo."""
+    global _decode_threads
+    _decode_threads = max(0, int(n))
+    if _pil_exts is not None:
+        _apply_decode_threads()
+
+
+def _apply_decode_threads():
+    n = _decode_threads
+    cpu = os.cpu_count() or 4
+    try:    # Pillow 11.3+: libavif con dav1d (0 = automatico, tutti i core)
+        from PIL import AvifImagePlugin
+        AvifImagePlugin.DEFAULT_MAX_THREADS = 0 if n == 0 else n
+    except Exception:  # noqa: BLE001
+        pass
+    try:    # pillow-heif: HEIC e (se usato) AVIF; il predefinito è 4
+        import pillow_heif
+        pillow_heif.options.DECODE_THREADS = cpu if n == 0 else n
+    except Exception:  # noqa: BLE001
+        pass
+    try:    # pillow-jxl-plugin: -1 = tutti i core, 0 = nessun parallelismo
+        from pillow_jxl import JpegXLImagePlugin
+        JpegXLImagePlugin.DECODE_THREADS = -1 if n == 0 else (0 if n == 1 else n)
+    except Exception:  # noqa: BLE001
+        pass
 
 
 def pillow_exts():
@@ -435,6 +465,8 @@ def save_pil(im, dst, key, quality=90, lossless=False, exif=None, icc=None):
         kw["lossless"] = True
         if key == "heif":
             kw["quality"] = -1
+    if key == "webp" and not kw.get("lossless"):
+        kw["method"] = 6        # compressione migliore (~10% in meno), codifica più lenta
     if key == "jpeg":
         kw["optimize"] = True
         kw["subsampling"] = 0 if quality >= 90 else 2

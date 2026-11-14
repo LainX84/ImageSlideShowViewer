@@ -1,4 +1,5 @@
 """Operazioni in blocco: rinomina, converti, copia/sposta, elimina."""
+import io
 import json
 import os
 import shutil
@@ -51,18 +52,93 @@ def available_formats():
     return write_formats()
 
 
-def convert_one(src, out_dir, fmt, ext, quality=90, max_side=0, exists="rename",
-                lossless=False, keep_exif=True):
-    """Converte un'immagine. Ritorna il percorso scritto, None se saltata; solleva OSError."""
-    from . import codecs
+_dst_lock = __import__("threading").Lock()
+JPEG_EXTS = {".jpg", ".jpeg", ".jpe", ".jfif"}
+NOT_SMALLER = "__not_smaller__"
+
+
+def _reserve(src, out_dir, ext, exists):
+    """Sceglie il nome di destinazione e lo prenota (sicuro con più thread).
+    Ritorna (dst, prenotato) oppure (None, False) se il file va saltato."""
     stem = os.path.splitext(os.path.basename(src.split("|")[-1]))[0]
     dst = os.path.join(out_dir, stem + ext)
-    if os.path.exists(dst) and not samepath(dst, src):
-        if exists == "skip":
-            return None
-        if exists == "rename":
-            dst = unique_path(dst)
-    os.makedirs(out_dir, exist_ok=True)
+    with _dst_lock:
+        os.makedirs(out_dir, exist_ok=True)
+        if os.path.exists(dst) and not samepath(dst, src):
+            if exists == "skip":
+                return None, False
+            if exists == "rename":
+                dst = unique_path(dst)
+        if os.path.exists(dst):
+            return dst, False
+        open(dst, "xb").close()     # segnaposto: un altro thread sceglierà un altro nome
+        return dst, True
+
+
+def _jpeg_to_jxl_lossless(src):
+    """JPEG → JPEG XL senza alcuna perdita (ricostruibile bit per bit); None se non si può."""
+    try:
+        from pillow_jxl import Encoder
+        from PIL import Image
+        from .archive import is_virtual, read_bytes
+        data = read_bytes(src) if is_virtual(src) else open(src, "rb").read()
+        with Image.open(io.BytesIO(data)) as im:
+            if im.format != "JPEG":
+                return None
+            w, h, mode = im.width, im.height, im.mode
+        enc = Encoder(mode="RGB" if mode not in ("L",) else "L", lossless=True, quality=100,
+                      decoding_speed=0, effort=7, use_container=True, use_original_profile=False,
+                      num_threads=-1)
+        return enc(data, w, h, jpeg_encode=True)
+    except Exception:  # noqa: BLE001 - JPEG CMYK o insolito: si converte normalmente
+        return None
+
+
+def convert_one(src, out_dir, fmt, ext, quality=90, max_side=0, exists="rename",
+                lossless=False, keep_exif=True, keep_smaller=False, keep_date=False):
+    """Converte un'immagine. Ritorna il percorso scritto, None se saltata, NOT_SMALLER se il
+    risultato non era più piccolo dell'originale (e quindi è stato scartato); solleva OSError.
+
+    Si scrive prima in un file temporaneo: in caso di errore non restano file a metà."""
+    from . import codecs
+    from .archive import is_virtual, stat_any
+    dst, reserved = _reserve(src, out_dir, ext, exists)
+    if dst is None:
+        return None
+    tmp = dst + ".isv-tmp"
+    try:
+        data = None
+        if fmt == "jxl" and lossless and not max_side and codecs.ext_of(src) in JPEG_EXTS:
+            data = _jpeg_to_jxl_lossless(src)
+        if data is not None:
+            with open(tmp, "wb") as f:
+                f.write(data)
+        else:
+            _convert_to(src, tmp, fmt, quality, max_side, lossless, keep_exif)
+        src_mtime, src_size = stat_any(src)
+        if keep_smaller and os.path.getsize(tmp) >= src_size:
+            os.remove(tmp)
+            if reserved:
+                os.remove(dst)
+            return NOT_SMALLER
+        os.replace(tmp, dst)
+        if keep_date and not is_virtual(src):
+            os.utime(dst, (os.stat(src).st_atime, src_mtime))
+        elif keep_date:
+            os.utime(dst, (src_mtime, src_mtime))
+        return dst
+    except BaseException:
+        for p in (tmp, dst if reserved else None):
+            try:
+                if p and os.path.exists(p) and (p == tmp or os.path.getsize(p) == 0):
+                    os.remove(p)
+            except OSError:
+                pass
+        raise
+
+
+def _convert_to(src, dst, fmt, quality, max_side, lossless, keep_exif):
+    from . import codecs
     if codecs.have_pillow():
         try:
             im, exif, icc = codecs.open_pil(src)
@@ -73,8 +149,10 @@ def convert_one(src, out_dir, fmt, ext, quality=90, max_side=0, exists="rename",
             im, exif, icc = codecs.qimage_to_pil(img), None, None
         if max_side and max(im.size) > max_side:
             im.thumbnail((max_side, max_side))
+        if fmt == "webp" and max(im.size) > 16383:
+            raise OSError(tr("WebP non supera i 16383 pixel per lato ({w}×{h})", w=im.width, h=im.height))
         codecs.save_pil(im, dst, fmt, quality, lossless, exif if keep_exif else None, icc)
-        return dst
+        return
     img, err = codecs.read_qimage(src)
     if img.isNull():
         raise OSError(err or tr("lettura non riuscita"))
@@ -89,7 +167,6 @@ def convert_one(src, out_dir, fmt, ext, quality=90, max_side=0, exists="rename",
         p.end()
         img = flat
     codecs.save_qimage(img, dst, fmt, quality, lossless)
-    return dst
 
 
 class ConvertDialog(QDialog):
@@ -105,7 +182,9 @@ class ConvertDialog(QDialog):
         self.fmt.setCurrentIndex(keys.index(last) if last in keys else 0)
         self.quality = QSpinBox(minimum=1, maximum=100, value=settings.value("batch/conv_q", 90, type=int))
         self.lossless = QCheckBox(tr("Senza perdita (lossless)"))
-        self.lossless.setToolTip(tr("Per WebP, AVIF, HEIC e JPEG XL: nessuna perdita di qualità, file più grandi."))
+        self.lossless.setToolTip(tr("Per WebP, AVIF, HEIC e JPEG XL: nessuna perdita di qualità, file più grandi.\n"
+                                    "JPEG → JPEG XL senza perdita: il JPEG viene ricompresso (circa -20%) "
+                                    "e si può riottenere identico bit per bit."))
         self.lossless.setChecked(settings.value("batch/conv_lossless", False, type=bool))
         self.keep_exif = QCheckBox(tr("Mantieni i dati EXIF e il profilo colore"))
         self.keep_exif.setChecked(settings.value("batch/conv_exif", True, type=bool))
@@ -135,6 +214,12 @@ class ConvertDialog(QDialog):
         self.del_orig = QCheckBox(tr("Sposta gli originali nel Cestino dopo la conversione"))
         self.del_orig.setToolTip(tr("Solo per i file convertiti senza errori; si possono "
                                     "recuperare dal Cestino."))
+        self.keep_smaller = QCheckBox(tr("Tieni il file convertito solo se è più piccolo dell'originale"))
+        self.keep_smaller.setToolTip(tr("Altrimenti il file convertito viene scartato e l'originale resta "
+                                        "com'è (utile per recuperare spazio)."))
+        self.keep_smaller.setChecked(settings.value("batch/conv_smaller", False, type=bool))
+        self.keep_date = QCheckBox(tr("Mantieni la data di modifica degli originali"))
+        self.keep_date.setChecked(settings.value("batch/conv_date", True, type=bool))
         from .codecs import have_pillow
         note = QLabel(tr("Le foto ruotate vengono raddrizzate.") + ("" if have_pillow() else " " +
                       tr("Senza Pillow i dati EXIF non vengono copiati.")))
@@ -154,7 +239,9 @@ class ConvertDialog(QDialog):
         form.addRow(tr("Salva in:"), ow)
         form.addRow(tr("Se il file esiste:"), self.exists)
         form.addRow(tr("Originali:"), self.del_orig)
+        form.addRow("", self.keep_smaller)
         form.addRow("", self.keep_exif)
+        form.addRow("", self.keep_date)
         bb = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         bb.button(QDialogButtonBox.StandardButton.Ok).setText(tr("Converti"))
         bb.accepted.connect(self.accept)
@@ -201,32 +288,73 @@ class ConvertDialog(QDialog):
         if self.r_dir.isChecked() and not self.dir_edit.text().strip():
             QMessageBox.warning(self.parent(), tr("Converti"), tr("Scegli una cartella di destinazione."))
             return False
-        prog = _progress(self.parent(), tr("Conversione in corso…"), len(self.paths))
-        done, errors, converted = 0, [], []
-        for i, p in enumerate(self.paths):
-            if prog.wasCanceled():
-                break
-            prog.setLabelText(os.path.basename(p))
-            prog.setValue(i)
-            QApplication.processEvents()
+        s.setValue("batch/conv_smaller", self.keep_smaller.isChecked())
+        s.setValue("batch/conv_date", self.keep_date.isChecked())
+        from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
+        from . import perf
+        from .archive import stat_any
+
+        def out_dir_for(p):
             src_dir = os.path.dirname(p.split("|")[0]) if "|" in p else os.path.dirname(p)
             if self.r_sub.isChecked():
-                out_dir = os.path.join(src_dir, self.sub_name.text().strip() or tr("convertite"))
-            elif self.r_dir.isChecked():
-                out_dir = self.dir_edit.text().strip()
-            else:
-                out_dir = src_dir
-            try:
-                dst = convert_one(p, out_dir, fmt, ext, self.quality.value(), side, policy,
-                                  self.lossless.isChecked() and self.lossless.isEnabled(),
-                                  self.keep_exif.isChecked())
-                if dst:
+                return os.path.join(src_dir, self.sub_name.text().strip() or tr("convertite"))
+            if self.r_dir.isChecked():
+                return self.dir_edit.text().strip()
+            return src_dir
+
+        lossless = self.lossless.isChecked() and self.lossless.isEnabled()
+        args = (fmt, ext, self.quality.value(), side, policy, lossless, self.keep_exif.isChecked(),
+                self.keep_smaller.isChecked(), self.keep_date.isChecked())
+
+        def job(p):
+            before = stat_any(p)[1]
+            dst = convert_one(p, out_dir_for(p), *args)
+            after = os.path.getsize(dst) if dst and dst != NOT_SMALLER else 0
+            return dst, before, after
+
+        n = len(self.paths)
+        prog = _progress(self.parent(), tr("Conversione in corso…"), n)
+        done, errors, converted, bigger = 0, [], [], 0
+        size_before = size_after = 0
+        finished = 0
+        ex = ThreadPoolExecutor(max_workers=perf.batch_threads())
+        futs = {ex.submit(job, p): p for p in self.paths}
+        pending = set(futs)
+        canceled = False
+        while pending:
+            ready, pending = wait(pending, timeout=0.05, return_when=FIRST_COMPLETED)
+            for f in ready:
+                p = futs[f]
+                finished += 1
+                if f.cancelled():
+                    continue
+                try:
+                    dst, before, after = f.result()
+                except OSError as e:
+                    errors.append(f"{os.path.basename(p.split('|')[-1])}: {e}")
+                    continue
+                except Exception as e:  # noqa: BLE001 - file danneggiato o formato insolito
+                    errors.append(f"{os.path.basename(p.split('|')[-1])}: {e}")
+                    continue
+                if dst == NOT_SMALLER:
+                    bigger += 1
+                elif dst:
                     done += 1
+                    size_before += before
+                    size_after += after
                     if self.del_orig.isChecked() and not samepath(dst, p):
                         converted.append(p)
-            except OSError as e:
-                errors.append(f"{os.path.basename(p)}: {e}")
-        prog.setValue(len(self.paths))
+            if ready:
+                prog.setLabelText(tr("{i} di {n}", i=finished, n=n) + "  ·  " +
+                                  os.path.basename(futs[next(iter(ready))].split("|")[-1]))
+            prog.setValue(min(finished, n))
+            QApplication.processEvents()
+            if prog.wasCanceled() and not canceled:
+                canceled = True
+                for f in pending:
+                    f.cancel()
+        ex.shutdown(wait=True)
+        prog.setValue(n)
         trashed = 0
         for p in converted:
             if move_to_trash(p):
@@ -234,10 +362,19 @@ class ConvertDialog(QDialog):
             else:
                 errors.append(f"{os.path.basename(p)}: " + tr("impossibile spostare l'originale nel Cestino"))
         _report(self.parent(), tr("Converti"), done, errors, tr("Convertiti"))
-        if trashed and not errors:
-            QMessageBox.information(self.parent(), tr("Converti"),
-                                    tr("Convertiti: {done} file.\nOriginali spostati nel Cestino: {n}.",
-                                       done=done, n=trashed))
+        if not errors and (done or bigger):
+            from .utils import human_size
+            lines = [tr("Convertiti: {done} file.", done=done)]
+            if done:
+                saved = size_before - size_after
+                lines.append(tr("Spazio: {a} → {b} ({pct}).", a=human_size(size_before), b=human_size(size_after),
+                                pct=(f"-{saved * 100 // max(1, size_before)}%" if saved >= 0
+                                     else f"+{-saved * 100 // max(1, size_before)}%")))
+            if bigger:
+                lines.append(tr("Lasciati com'erano perché non diventavano più piccoli: {n}.", n=bigger))
+            if trashed:
+                lines.append(tr("Originali spostati nel Cestino: {n}.", n=trashed))
+            QMessageBox.information(self.parent(), tr("Converti"), "\n".join(lines))
         return True
 
 

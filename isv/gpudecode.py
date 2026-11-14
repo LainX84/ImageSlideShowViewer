@@ -1,7 +1,7 @@
 """Decodifica JPEG sulla GPU NVIDIA con nvImageCodec (nvJPEG, CUDA) – facoltativa.
 
 Serve solo con schede NVIDIA. Le librerie si scaricano dal programma (proposta
-all'avvio, oppure Opzioni → Animazioni e GPU: vedi nvsupport.py) o con
+all'avvio, oppure Opzioni → Animazioni, GPU e prestazioni: vedi nvsupport.py) o con
     pip install "nvidia-nvimgcodec-cu12[nvjpeg]" numpy
 Se mancano, o se un file non si decodifica, si usa come sempre il decoder di Qt.
 Conviene soprattutto con foto JPEG molto grandi (20+ megapixel); per le miniature

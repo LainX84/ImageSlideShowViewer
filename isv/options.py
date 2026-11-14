@@ -24,6 +24,10 @@ DEFAULTS = {
     "browser/animate_thumbs": True,    # miniatura animata della GIF/WebP selezionata
     "gpu/render": "auto",        # auto | gl | gl_soft | cpu (vedi gpu.py; serve il riavvio)
     "gpu/nvjpeg": False,         # JPEG decodificati dalla GPU NVIDIA (nvImageCodec)
+    "perf/multithread": True,    # AVIF/HEIC/JXL su tutti i core, più immagini in parallelo (perf.py)
+    "perf/prefetch": True,       # precarica le immagini vicine
+    "perf/prefetch_ahead": 2,    # quante successive
+    "perf/prefetch_behind": 1,   # quante precedenti
     "viewer/quick_delete": True,       # Canc senza conferma (annullabile con Ctrl+Z)
     "viewer/video_sound": True,        # audio dei video
     "viewer/video_volume": 100,        # volume dei video (solo questo programma)
@@ -113,7 +117,7 @@ class OptionsDialog(QDialog):
         self.tabs.addTab(self._tab_osd(), tr("Avvisi e aspetto"))
         self.tabs.addTab(self._tab_slideshow(), tr("Slideshow"))
         self.tabs.addTab(self._tab_viewer(), tr("Visualizzatore"))
-        self.tabs.addTab(self._tab_anim(gpu, gpudecode), tr("Animazioni e GPU"))
+        self.tabs.addTab(self._tab_anim(gpu, gpudecode), tr("Animazioni, GPU e prestazioni"))
         self.tabs.addTab(self._tab_sort(), tr("Smistamento"))
         self.tabs.addTab(self._tab_screensaver(), tr("Salvaschermo"))
         self.tabs.addTab(self._tab_formats(), tr("Formati"))
@@ -341,7 +345,35 @@ class OptionsDialog(QDialog):
         f.addRow(nvw)
         f.addRow(self.ck_nvjpeg)
         f.addRow("", self.lb_nv)
-        return self._page(g)
+        return self._page(g, self._perf_group())
+
+    def _perf_group(self):
+        from . import perf
+        self.ck_mt = QCheckBox(tr("Decodifica multithread (AVIF, HEIC e JPEG XL su tutti i core, "
+                                  "più immagini in parallelo)"))
+        self.ck_mt.setToolTip(tr("Rende molto più veloci AVIF e JPEG XL grandi e la conversione in blocco. "
+                                 "Questo computer ha {n} core logici.", n=perf.CPU))
+        self.ck_pre = QCheckBox(tr("Precarica le immagini vicine (cambio immagine istantaneo)"))
+        self.sp_ahead = QSpinBox(minimum=1, maximum=perf.MAX_AHEAD)
+        self.sp_behind = QSpinBox(minimum=0, maximum=perf.MAX_BEHIND)
+        row = QHBoxLayout()
+        row.setContentsMargins(0, 0, 0, 0)
+        row.addWidget(QLabel(tr("Successive:")))
+        row.addWidget(self.sp_ahead)
+        row.addSpacing(16)
+        row.addWidget(QLabel(tr("Precedenti:")))
+        row.addWidget(self.sp_behind)
+        row.addStretch()
+        rw = QWidget()
+        rw.setLayout(row)
+        self.ck_pre.toggled.connect(rw.setEnabled)
+        self._pre_row = rw
+        g = QGroupBox(tr("Prestazioni"))
+        f = QFormLayout(g)
+        f.addRow(self.ck_mt)
+        f.addRow(self.ck_pre)
+        f.addRow(tr("Immagini da precaricare:"), rw)
+        return g
 
     def _tab_sort(self):
         g = QGroupBox(tr("Cartelle di destinazione (tasti 1-9 nel visualizzatore e nello slideshow)"))
@@ -443,6 +475,11 @@ class OptionsDialog(QDialog):
         from .gpu import MODES
         self.cb_render.setCurrentIndex(MODES.index(s["gpu/render"]) if s["gpu/render"] in MODES else 0)
         self.ck_nvjpeg.setChecked(s["gpu/nvjpeg"] and self.ck_nvjpeg.isEnabled())
+        self.ck_mt.setChecked(s["perf/multithread"])
+        self.ck_pre.setChecked(s["perf/prefetch"])
+        self.sp_ahead.setValue(int(s["perf/prefetch_ahead"]))
+        self.sp_behind.setValue(int(s["perf/prefetch_behind"]))
+        self._pre_row.setEnabled(self.ck_pre.isChecked())
         self.ck_advance.setChecked(s["sort/advance"])
         self.ck_ss.setChecked(s["screensaver/enabled"])
         self.sp_ss_min.setValue(int(s["screensaver/minutes"]))
@@ -558,6 +595,10 @@ class OptionsDialog(QDialog):
         if self.ck_nvjpeg.isEnabled():
             s["gpu/nvjpeg"] = self.ck_nvjpeg.isChecked()
         gpudecode.set_enabled(s["gpu/nvjpeg"])
+        s["perf/multithread"] = self.ck_mt.isChecked()
+        s["perf/prefetch"] = self.ck_pre.isChecked()
+        s["perf/prefetch_ahead"] = self.sp_ahead.value()
+        s["perf/prefetch_behind"] = self.sp_behind.value()
         utils.SHOW_VIDEOS = s["slideshow/videos"]
         s["sort/advance"] = self.ck_advance.isChecked()
         s["screensaver/enabled"] = self.ck_ss.isChecked()
@@ -571,6 +612,8 @@ class OptionsDialog(QDialog):
         self.restart_needed = s["gpu/render"] != self._render_at_start
         for k, v in s.items():
             self.settings.setValue(k, v)
+        from . import perf
+        perf.apply(self.settings)
         if self.restart_needed:
             from PySide6.QtWidgets import QMessageBox
             QMessageBox.information(self, self.windowTitle(),

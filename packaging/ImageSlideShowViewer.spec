@@ -10,7 +10,7 @@ ROOT = os.path.abspath(os.path.join(SPECPATH, ".."))
 NAME = "ImageSlideShowViewer"
 
 hidden = ["PySide6.QtMultimedia", "PySide6.QtOpenGL", "PySide6.QtOpenGLWidgets", "PySide6.QtPrintSupport",
-          "PySide6.QtNetwork", "sqlite3"]
+          "PySide6.QtNetwork", "sqlite3", "PIL.AvifImagePlugin"]
 datas = [(os.path.join(ROOT, "isv", "icon.ico"), "isv")]
 binaries = []
 for pkg in ("pillow_heif", "pillow_jxl", "rawpy", "py7zr", "rarfile", "numpy", "certifi"):

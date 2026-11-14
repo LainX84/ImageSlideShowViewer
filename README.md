@@ -15,6 +15,12 @@ ratings and collections, quick edits and batch operations.<br>
 
 ---
 
+## What's new in version 2.1
+
+- **Multithreaded decoding**: AVIF, HEIC and JPEG XL use all cores, and several images are decoded in parallel.
+- **Preloading** of nearby images (by default 2 next and 1 previous, adjustable): changing image is instant. Both options are in *Options → Animations, GPU and performance*.
+- Faster **batch conversion** (several files in parallel), with **"keep the converted file only if it is smaller"**, preserved modification date and a summary of the space saved. **JPEG → lossless JPEG XL** recompresses the JPEG (about -20%) so that it can be restored bit for bit.
+
 ## What's new in version 2.0.1
 
 - **Videos**: they now play **with sound**, with a 🔊/🔇 button (key **A**) and a **volume** slider that only changes this program's volume, not the system's (also Shift+↑ / Shift+↓).
@@ -97,8 +103,8 @@ The `.github/workflows/build.yml` workflow builds the program for **Windows x64,
 - a **tag** starting with `v` also publishes them as a **Release**:
 
 ```
-git tag v2.0.1
-git push origin v2.0.1
+git tag v2.1.0
+git push origin v2.1.0
 ```
 
 ## Explorer context menu
@@ -309,7 +315,7 @@ If the image has no EXIF data the window says so and still shows the other detai
 - **Messages and look**: folder name on change (position, duration), other messages, "Paused" badge, text colours and size with preview, control bar.
 - **Slideshow**: transition and duration, Ken Burns zoom, background music, double pages on their own, last page read in archives, videos on/off, slideshow screen.
 - **Viewer**: quick delete without confirmation, video sound, magnifier zoom.
-- **Animations and GPU**: animations (paused slideshow, 2 side by side, browser thumbnail), rendering method, NVIDIA GPU support (install, reinstall, remove) and JPEG decoding on the GPU.
+- **Animations, GPU and performance**: animations (paused slideshow, 2 side by side, browser thumbnail), rendering method, NVIDIA GPU support (install, reinstall, remove), JPEG decoding on the GPU, **multithreaded decoding** (AVIF, HEIC and JPEG XL on all cores, several images in parallel) and **preloading** of nearby images (how many next and previous; default 2 and 1).
 - **Sorting**: the folders for keys 1–9, move or copy.
 - **Screensaver**: see below.
 - **Formats**: what is available (HEIC, AVIF, JPEG XL, RAW, video, 7Z, RAR) and how to add what is missing.
@@ -324,7 +330,7 @@ In *Options → Screensaver* you can start, after some time without using mouse 
 
 ## GPU acceleration
 
-*Options → Animations and GPU → Image rendering* (takes effect at the next start):
+*Options → Animations, GPU and performance → Image rendering* (takes effect at the next start):
 
 | Choice | What it uses |
 |---|---|
@@ -338,7 +344,7 @@ With OpenGL each image is uploaded once to video memory as a mipmapped texture: 
 **JPEG decoding on NVIDIA GPUs** (Windows x64 and Linux x64, proprietary NVIDIA library). The libraries are not bundled with the program, because only people with an NVIDIA card need them:
 
 - at start-up, if the program finds the NVIDIA driver, it offers **once** to download them: *Download and install*, *Later* (asks again at the next start) or *Don't ask again*;
-- *Options → Animations and GPU → NVIDIA GPU support* shows the card found and what is installed, with **Install / Reinstall** and **Remove** buttons;
+- *Options → Animations, GPU and performance → NVIDIA GPU support* shows the card found and what is installed, with **Install / Reinstall** and **Remove** buttons;
 - the program downloads the official `nvidia-nvimgcodec-cu12` and `nvidia-nvjpeg-cu12` packages from PyPI (about 25 MB), checks their SHA-256 fingerprint and keeps only what is needed (the JPEG decoder for the Python version in use, about 25 MB on disk) in the program's data folder. No pip is needed, so it also works with the compiled program;
 - after installation decoding turns on by itself (*Decode large JPEGs on the NVIDIA GPU*); behind a corporate proxy you can point to its certificate with the `SSL_CERT_FILE` variable.
 
@@ -368,7 +374,7 @@ Invalid names for Windows (characters `< > : " / \ | ? *`, trailing dot or space
 
 ## Other batch operations
 
-- **Convert**: save as **JPEG, PNG, WebP, AVIF, HEIC, JPEG XL, TIFF, BMP or GIF**, with adjustable quality, **lossless** mode (WebP, AVIF, HEIC, JPEG XL) and longest-side reduction, into a subfolder, another folder or next to the originals. Photos are straightened according to EXIF and **EXIF data and the colour profile are kept**. Optionally, after conversion the originals go to the Recycle Bin.
+- **Convert**: save as **JPEG, PNG, WebP, AVIF, HEIC, JPEG XL, TIFF, BMP or GIF**, with adjustable quality, **lossless** mode (WebP, AVIF, HEIC, JPEG XL) and longest-side reduction, into a subfolder, another folder or next to the originals. Photos are straightened according to EXIF and **EXIF data and the colour profile are kept**. Optionally, after conversion the originals go to the Recycle Bin. Conversion works on **several files in parallel**, can **keep the new file only if it is smaller** than the original (to free up space), **keeps the modification date** and reports the space saved at the end. **JPEG → lossless JPEG XL** recompresses the JPEG (about -20%) so that it can be restored bit for bit.
 - **Convert archive to CBZ**: see *Comics and manga*.
 - **Copy / Move** (whole folders too): if a file already exists in the destination, you can add a number to the name, overwrite or skip it.
 - **Delete**: moves files or folders to the Recycle Bin; **Ctrl+Z** undoes.
@@ -442,6 +448,7 @@ isv/options.py               Options dialog
 isv/about.py, theme.py       About dialog, light / dark theme
 isv/i18n.py, lang_en.py      translations
 isv/loader.py, worker.py     image loading and preloading, background jobs
+isv/perf.py                  multithreaded decoding and preloading (options)
 isv/utils.py                 file listing, sorting, folder navigation
 ```
 

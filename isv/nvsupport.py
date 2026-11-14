@@ -3,7 +3,7 @@
 Le librerie NVIDIA pesano qualche decina di MB e servono solo a chi ha una scheda
 NVIDIA, quindi non sono incluse nel programma: se all'avvio viene trovato il driver
 NVIDIA, il programma propone di scaricarle (una volta sola). Si possono installare,
-reinstallare o togliere anche da Opzioni → Animazioni e GPU.
+reinstallare o togliere anche da Opzioni → Animazioni, GPU e prestazioni.
 
 Il download viene dai pacchetti ufficiali su PyPI (nvidia-nvimgcodec-cu12 e
 nvidia-nvjpeg-cu12), controllati con l'impronta SHA-256 pubblicata da PyPI, ed estratti

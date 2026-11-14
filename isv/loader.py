@@ -1,10 +1,10 @@
-"""Caricamento immagini in background con piccola cache (precaricamento slideshow)."""
+"""Caricamento immagini in background con piccola cache (precaricamento: vedi perf.py)."""
 from collections import OrderedDict
 
 from PySide6.QtCore import QObject, Signal
 from PySide6.QtGui import QImage
 
-from . import codecs, gpu, gpudecode
+from . import codecs, gpu, gpudecode, perf
 from .archive import is_virtual, read_bytes, stat_any
 from .worker import BgWorker
 
@@ -39,15 +39,33 @@ def _read_gpu(path):
 class ImageLoader(QObject):
     ready = Signal(str, QImage, str)  # path, immagine, errore
 
-    def __init__(self, cache_size=10, parent=None):
+    def __init__(self, cache_size=None, parent=None):
         super().__init__(parent)
-        self.worker = BgWorker(2, self)
+        self._fixed_cache = cache_size
+        self.threads = perf.loader_threads()
+        self.worker = BgWorker(self.threads, self)
         self.cache = OrderedDict()
         self.errors = {}
         self.pending = set()
-        self.cache_size = cache_size
-        self.max_bytes = 350 * 1024 * 1024
+        self.cache_size = cache_size or perf.cache_size()
+        self.max_bytes = 512 * 1024 * 1024
         self.wanted = set()
+        perf.register(self)
+
+    def configure(self):
+        """Dopo un cambio delle opzioni di prestazioni (thread e precaricamento)."""
+        self.cache_size = self._fixed_cache or perf.cache_size()
+        n = perf.loader_threads()
+        if n != self.threads:
+            self.threads = n
+            self.worker.shutdown()
+            self.worker.deleteLater()
+            self.worker = BgWorker(n, self)
+            self.pending.clear()     # i lavori del vecchio esecutore sono stati annullati
+            for p in list(self.wanted):
+                if p not in self.cache:
+                    self.pending.add(p)
+                    self.worker.submit(_read, self._on_loaded, p, self.wanted)
 
     def get(self, path):
         img = self.cache.get(path)

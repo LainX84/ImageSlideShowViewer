@@ -1,4 +1,4 @@
-# Image SlideShow Viewer 2.0 – Python 3.11 o più recente (provato con 3.14)
+# Image SlideShow Viewer 2.1 – Python 3.11 o più recente (provato con 3.14)
 PySide6>=6.8
 Pillow>=11.3            # EXIF, editor, conversione, AVIF
 pillow-heif>=1.0        # HEIC / HEIF

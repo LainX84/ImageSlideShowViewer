@@ -1008,7 +1008,7 @@ EN = {
     'Rimosse: smetteranno di essere usate al prossimo avvio.': 'Removed: they will stop being used at the next start.',
     'Scaricamento non riuscito:\n{err}': 'Download failed:\n{err}',
     'Hai una scheda NVIDIA{name}.': 'You have an NVIDIA card{name}.',
-    'Vuoi scaricare il supporto per decodificare i JPEG grandi con la scheda video?\nSono le librerie ufficiali NVIDIA (nvImageCodec e nvJPEG, circa 25 MB), prese da PyPI.\n\nSi può fare anche dopo, o togliere, da Opzioni → Animazioni e GPU.': 'Do you want to download the support for decoding large JPEGs on the graphics card?\nThese are the official NVIDIA libraries (nvImageCodec and nvJPEG, about 25 MB), taken from PyPI.\n\nYou can also do it later, or remove it, from Options → Animations and GPU.',
+    'Vuoi scaricare il supporto per decodificare i JPEG grandi con la scheda video?\nSono le librerie ufficiali NVIDIA (nvImageCodec e nvJPEG, circa 25 MB), prese da PyPI.\n\nSi può fare anche dopo, o togliere, da Opzioni → Animazioni, GPU e prestazioni.': 'Do you want to download the support for decoding large JPEGs on the graphics card?\nThese are the official NVIDIA libraries (nvImageCodec and nvJPEG, about 25 MB), taken from PyPI.\n\nYou can also do it later, or remove it, from Options → Animations, GPU and performance.',
     'Scarica e installa': 'Download and install',
     'Più tardi': 'Later',
     'Non chiedere più': "Don't ask again",
@@ -1022,4 +1022,27 @@ EN = {
     'Pulsanti grandi': 'Large buttons',
     'Mostra la barra dei pulsanti': 'Show the toolbar',
     'Barra dei pulsanti': 'Toolbar',
+    # prestazioni e conversione (2.1)
+    "Per WebP, AVIF, HEIC e JPEG XL: nessuna perdita di qualità, file più grandi.\nJPEG → JPEG XL senza perdita: il JPEG viene ricompresso (circa -20%) e si può riottenere identico bit per bit.":
+        "For WebP, AVIF, HEIC and JPEG XL: no quality loss, larger files.\nJPEG → lossless JPEG XL: the JPEG is recompressed (about -20%) and can be restored bit for bit.",
+    "Tieni il file convertito solo se è più piccolo dell'originale": "Keep the converted file only if it is smaller than the original",
+    "Altrimenti il file convertito viene scartato e l'originale resta com'è (utile per recuperare spazio).":
+        "Otherwise the converted file is discarded and the original is left as it is (useful to free up space).",
+    "Mantieni la data di modifica degli originali": "Keep the modification date of the originals",
+    "WebP non supera i 16383 pixel per lato ({w}×{h})": "WebP cannot exceed 16383 pixels per side ({w}×{h})",
+    "Convertiti: {done} file.": "Converted: {done} files.",
+    "Spazio: {a} → {b} ({pct}).": "Space: {a} → {b} ({pct}).",
+    "Lasciati com'erano perché non diventavano più piccoli: {n}.": "Left unchanged because they would not get smaller: {n}.",
+    "Originali spostati nel Cestino: {n}.": "Originals moved to the Recycle Bin: {n}.",
+    "{i} di {n}": "{i} of {n}",
+    "Animazioni, GPU e prestazioni": "Animations, GPU and performance",
+    "Decodifica multithread (AVIF, HEIC e JPEG XL su tutti i core, più immagini in parallelo)":
+        "Multithreaded decoding (AVIF, HEIC and JPEG XL on all cores, several images in parallel)",
+    "Rende molto più veloci AVIF e JPEG XL grandi e la conversione in blocco. Questo computer ha {n} core logici.":
+        "Makes large AVIF and JPEG XL files and batch conversion much faster. This computer has {n} logical cores.",
+    "Precarica le immagini vicine (cambio immagine istantaneo)": "Preload nearby images (instant image change)",
+    "Prestazioni": "Performance",
+    "Immagini da precaricare:": "Images to preload:",
+    "Successive:": "Next:",
+    "Precedenti:": "Previous:",
 }

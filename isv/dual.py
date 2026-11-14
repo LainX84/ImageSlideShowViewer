@@ -11,7 +11,7 @@ from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QDialogButtonBox,
                                QHBoxLayout, QLabel, QLineEdit, QMenu, QMessageBox,
                                QPushButton, QVBoxLayout, QWidget)
 
-from . import APP_NAME
+from . import APP_NAME, perf
 from .archive import is_archive
 from .i18n import num, tr
 from .utils import is_video, list_images
@@ -190,9 +190,10 @@ class DualViewerWindow(QWidget):
             s.canvas.set_message(tr("Impossibile aprire\n{name}\n\n{err}", name=os.path.basename(path), err=err))
         else:
             self.loader.request(path, keep_wanted=True)
-        nxt = s.peek(1)
-        if nxt and nxt != path:
-            self.loader.request(nxt, keep_wanted=True)
+        for k in perf.prefetch_offsets():
+            p = s.peek(k)
+            if p and p != path and not is_video(p):
+                self.loader.request(p, keep_wanted=True)
         self._info(s)
 
     def _on_ready(self, path, img, err):

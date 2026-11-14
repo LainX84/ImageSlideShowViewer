@@ -7,7 +7,7 @@ from PySide6.QtGui import QAction, QActionGroup, QColor, QIcon, QMovie, QPixmap
 from PySide6.QtWidgets import (QFrame, QHBoxLayout, QInputDialog, QLabel, QMenu, QMessageBox,
                                QSlider, QToolButton, QVBoxLayout, QWidget)
 
-from . import APP_NAME, anim, codecs, gpu, library, orient, shortcuts
+from . import APP_NAME, anim, codecs, gpu, library, orient, perf, shortcuts
 from .archive import is_virtual, parent_of, read_bytes, split, stat_any
 from .canvas import (BACKGROUNDS, FIT_MODES, TRANSITIONS, Canvas, GLCanvas,  # noqa: F401 (riesportati)
                      background_name, fit_mode_name, make_canvas, transition_name)
@@ -683,20 +683,19 @@ class ViewerWindow(QWidget):
 
     def _after_display(self):
         self._remember_page(self._shown_path)
-        if self.pair:
-            for k in (2, 3):
-                nxt = self.nav.peek(k)
-                if nxt and not codecs.is_video(nxt):
-                    self.loader.request(nxt, keep_wanted=True)
-        else:
-            nxt = self.nav.peek(1)
-            if nxt and not codecs.is_video(nxt):
-                self.loader.request(nxt, keep_wanted=True)
+        self._prefetch()
         if self.playing:
             if self._st("slideshow/transition", "fade") == "kenburns" and not self.pair:
                 self.canvas.start_kenburns(self.interval + int(self._st("slideshow/transition_ms", 600)) / 1000,
                                            int(self._st("slideshow/kenburns_zoom", 12)) / 100)
             self.timer.start(int(self.interval * 1000))
+
+    def _prefetch(self):
+        """Decodifica in background le immagini vicine (vedi perf.py), dalla più vicina."""
+        for k in perf.prefetch_offsets(2 if self.pair else 1):
+            p = self.nav.peek(k)
+            if p and not codecs.is_video(p):
+                self.loader.request(p, keep_wanted=True)
 
     def _update_info(self):
         path = self.nav.current()

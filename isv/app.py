@@ -155,7 +155,7 @@ class App:
         box.setInformativeText(i18n.tr(
             "Vuoi scaricare il supporto per decodificare i JPEG grandi con la scheda video?\n"
             "Sono le librerie ufficiali NVIDIA (nvImageCodec e nvJPEG, circa 25 MB), prese da PyPI.\n\n"
-            "Si può fare anche dopo, o togliere, da Opzioni → Animazioni e GPU."))
+            "Si può fare anche dopo, o togliere, da Opzioni → Animazioni, GPU e prestazioni."))
         b_yes = box.addButton(i18n.tr("Scarica e installa"), QMessageBox.ButtonRole.AcceptRole)
         box.addButton(i18n.tr("Più tardi"), QMessageBox.ButtonRole.RejectRole)
         b_never = box.addButton(i18n.tr("Non chiedere più"), QMessageBox.ButtonRole.DestructiveRole)
@@ -292,6 +292,8 @@ def main(argv=None):
 
     settings = open_settings()
     gpudecode.set_enabled(settings.value("gpu/nvjpeg", False, type=bool))
+    from . import perf
+    perf.apply(settings)   # decodifica multithread e precaricamento, prima di creare il caricatore
     from . import utils as _utils
     _utils.SHOW_VIDEOS = settings.value("slideshow/videos", True, type=bool)
     i18n.init(settings)  # prima di creare qualsiasi finestra
