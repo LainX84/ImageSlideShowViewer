@@ -3,7 +3,7 @@
 <h1 align="center">Image SlideShow Viewer</h1>
 
 <p align="center">
-An ACDSee-style image viewer for Windows, macOS and Linux: folder tree and thumbnail browser,
+A fast image viewer for Windows, macOS and Linux: folder tree and thumbnail browser,
 full-screen viewer, a slideshow that jumps from folder to folder, comics (CBZ, CBR, CB7),
 ratings and collections, quick edits and batch operations.<br>
 <b>English</b> · <a href="README.it.md">Italiano</a>
@@ -47,7 +47,7 @@ ratings and collections, quick edits and batch operations.<br>
 - **Slideshow** with interval, random order, repeat, subfolders and transitions; **↓ / ↑ jump to the next / previous folder** while it runs.
 - **Comics**: CBZ/ZIP, CBR/RAR and CB7/7Z archives shown as folders with their cover, **2 pages side by side**, **manga mode**, continuous vertical reading.
 - **Ratings, labels, Favourites and collections**, search, duplicates, calendar and map.
-- **Batch rename** modelled on ACDSee, **batch conversion** (JPEG, PNG, WebP, AVIF, HEIC, JPEG XL, TIFF, BMP, GIF), **copy / move / delete** with undo.
+- **Batch rename** built from a list of operations, **batch conversion** (JPEG, PNG, WebP, AVIF, HEIC, JPEG XL, TIFF, BMP, GIF), **copy / move / delete** with undo.
 - **Image info and EXIF**, with the GPS location on a map.
 - **Side-by-side slideshow of two different folders**.
 - **Explorer context menu** (optional) and **network folders** (`\\192.168.0.2`).
@@ -92,7 +92,7 @@ python image_slideshow_viewer.pyw --convert file1.png file2.png …
 2. On Windows move the whole `dist\ImageSlideShowViewer` folder (not just the .exe, which needs the `_internal` subfolder) wherever you like, for example `C:\Program Files\ImageSlideShowViewer`.
 3. In Explorer right-click a .jpg, then *Open with → Choose another app → Look for another app on this PC*, select `ImageSlideShowViewer.exe` and tick *"Always use this app"*. Repeat for .png, .gif, .heic, .cbz, .cbr and so on.
 
-From then on, double-clicking a photo opens the viewer. **Enter** takes you to the browser on that folder, just like ACDSee.
+From then on, double-clicking a photo opens the viewer. **Enter** takes you to the browser on that folder.
 
 ### Automatic builds on GitHub
 
@@ -354,7 +354,7 @@ If something goes wrong with OpenGL (black windows, menus not showing in full sc
 
 ## Batch rename
 
-Select the files (images and also comic archives) and press **Ctrl+F2** (or F2 with several files selected), or use *Batch → Batch rename* in the right-click menu in the browser or in Explorer. As in ACDSee, the rename is a **list of operations** applied in order: tick the ones you need, change their order with ↑ / ↓, add more with **+** (even several of the same kind) and remove them with **−**. The preview shows the new names immediately.
+Select the files (images and also comic archives) and press **Ctrl+F2** (or F2 with several files selected), or use *Batch → Batch rename* in the right-click menu in the browser or in Explorer. The rename is a **list of operations** applied in order: tick the ones you need, change their order with ↑ / ↓, add more with **+** (even several of the same kind) and remove them with **−**. The preview shows the new names immediately.
 
 | Operation | What it does |
 |---|---|

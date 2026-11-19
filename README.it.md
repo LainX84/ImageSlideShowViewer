@@ -3,7 +3,7 @@
 <h1 align="center">Image SlideShow Viewer</h1>
 
 <p align="center">
-Visualizzatore di immagini in stile ACDSee per Windows, macOS e Linux: albero delle cartelle e
+Visualizzatore di immagini veloce per Windows, macOS e Linux: albero delle cartelle e
 browser a miniature, visualizzatore a schermo intero, slideshow che salta da una cartella all'altra,
 fumetti (CBZ, CBR, CB7), valutazioni e raccolte, ritocchi rapidi e operazioni in blocco.<br>
 <a href="README.md">English</a> · <b>Italiano</b>
@@ -47,7 +47,7 @@ fumetti (CBZ, CBR, CB7), valutazioni e raccolte, ritocchi rapidi e operazioni in
 - **Slideshow** con intervallo, ordine casuale, ripetizione, sottocartelle e transizioni; **↓ / ↑ saltano alla cartella successiva / precedente** mentre scorre.
 - **Fumetti**: archivi CBZ/ZIP, CBR/RAR e CB7/7Z mostrati come cartelle con la copertina, **2 pagine affiancate**, **modalità manga**, lettura verticale continua.
 - **Valutazioni, etichette, Preferiti e raccolte**, ricerca, duplicati, calendario e mappa.
-- **Rinomina in blocco** sul modello di ACDSee, **conversione in blocco** (JPEG, PNG, WebP, AVIF, HEIC, JPEG XL, TIFF, BMP, GIF), **copia / sposta / elimina** con annullamento.
+- **Rinomina in blocco** basata su un elenco di operazioni, **conversione in blocco** (JPEG, PNG, WebP, AVIF, HEIC, JPEG XL, TIFF, BMP, GIF), **copia / sposta / elimina** con annullamento.
 - **Informazioni immagine ed EXIF**, con la posizione GPS sulla mappa.
 - **Slideshow di due cartelle diverse affiancate**.
 - **Menu contestuale di Esplora risorse** (facoltativo) e **cartelle di rete** (`\\192.168.0.2`).
@@ -92,7 +92,7 @@ python image_slideshow_viewer.pyw --convert file1.png file2.png …
 2. Su Windows sposta l'intera cartella `dist\ImageSlideShowViewer` (non solo il file .exe, che ha bisogno della sottocartella `_internal`) dove preferisci, per esempio `C:\Programmi\ImageSlideShowViewer`.
 3. In Esplora risorse fai clic destro su un .jpg, poi *Apri con → Scegli un'altra app → Cerca un'altra app nel PC*, seleziona `ImageSlideShowViewer.exe` e spunta *"Usa sempre"*. Ripeti per .png, .gif, .heic, .cbz, .cbr e così via.
 
-Da quel momento, con un doppio clic su una foto si apre il visualizzatore. **Invio** ti porta al browser su quella cartella, come in ACDSee.
+Da quel momento, con un doppio clic su una foto si apre il visualizzatore. **Invio** ti porta al browser su quella cartella.
 
 ### Build automatica su GitHub
 
@@ -354,7 +354,7 @@ Se con OpenGL qualcosa non va (finestre nere, menu che non compaiono a schermo i
 
 ## Rinomina in blocco
 
-Seleziona i file (immagini e anche archivi di fumetti) e premi **Ctrl+F2** (o F2 con più file selezionati), oppure usa *Elaborazione in blocco → Rinomina in blocco* dal tasto destro nel browser o in Esplora risorse. Come in ACDSee, la rinomina è un **elenco di operazioni** applicate in ordine: spunta quelle che ti servono, cambiane l'ordine con ↑ / ↓, aggiungine altre con **+** (anche più dello stesso tipo) e toglile con **−**. L'anteprima mostra subito i nuovi nomi.
+Seleziona i file (immagini e anche archivi di fumetti) e premi **Ctrl+F2** (o F2 con più file selezionati), oppure usa *Elaborazione in blocco → Rinomina in blocco* dal tasto destro nel browser o in Esplora risorse. La rinomina è un **elenco di operazioni** applicate in ordine: spunta quelle che ti servono, cambiane l'ordine con ↑ / ↓, aggiungine altre con **+** (anche più dello stesso tipo) e toglile con **−**. L'anteprima mostra subito i nuovi nomi.
 
 | Operazione | Cosa fa |
 |---|---|
