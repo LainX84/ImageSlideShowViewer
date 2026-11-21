@@ -264,7 +264,7 @@ class ViewerWindow(QWidget):
     files_changed = Signal(str)          # cartella modificata
     webtoon_requested = Signal(list, int)
 
-    def __init__(self, nav, loader, settings, slideshow=False, parent=None, screensaver=False):
+    def __init__(self, nav, loader, settings, slideshow=False, parent=None, screensaver=False, prefs=None):
         super().__init__(parent)
         self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
         self.setWindowTitle(APP_NAME)
@@ -281,6 +281,13 @@ class ViewerWindow(QWidget):
             self.interval = float(settings.value("screensaver/interval", 6.0, type=float))
         self.pair = slideshow and not screensaver and settings.value("slideshow/pair", False, type=bool)
         self.manga = settings.value("slideshow/manga", False, type=bool)
+        # impostazioni ricordate per la cartella (slideshow avviato da Esplora risorse)
+        prefs = prefs or {}
+        self.folder_transition = prefs.get("transition")
+        if slideshow and not screensaver:
+            self.interval = prefs.get("interval", self.interval)
+            self.pair = prefs.get("pair", self.pair)
+            self.manga = prefs.get("manga", self.manga)
         self._shown2 = None
         self.view_o = orient.IDENTITY          # rotazione / specchio a video
         self._wide = {}
@@ -737,7 +744,8 @@ class ViewerWindow(QWidget):
                 lines.append("   ".join(extra))
         fpos = self.nav.folder_position()
         ftxt = tr("Cartella {i}/{n}: ", i=fpos[0], n=fpos[1]) if fpos else tr("Cartella: ")
-        lines.append(ftxt + self.nav.folder)
+        lines.append(ftxt + self.nav.folder + ("   🔀 " + tr("cartelle casuali")
+                                                if self.nav.shuffle_folders else ""))
         if self.slideshow_mode:
             state = "▶ " + tr("in corso") if self.playing else "❚❚ " + tr("in pausa")
             opts = []
@@ -784,6 +792,31 @@ class ViewerWindow(QWidget):
             self._flash_folder()
         else:
             self.canvas.flash(tr("Nessuna altra cartella con immagini"), 1200)
+
+    def random_folder(self, d):
+        """PagGiù / PagSu: cartelle in ordine casuale, immagini in ordine dentro ognuna."""
+        first = not self.nav.shuffle_folders
+        if first:
+            self.setCursor(Qt.CursorShape.WaitCursor)
+            try:
+                self.nav.enable_random_folders()
+            finally:
+                self.unsetCursor()
+        self.go_folder(d)
+
+    def toggle_random_folders(self):
+        if self.nav.shuffle_folders:
+            self.nav.disable_random_folders()
+            self.canvas.flash(tr("Cartelle casuali disattivate: cartelle di nuovo in ordine"))
+            self._update_info()
+            return
+        self.setCursor(Qt.CursorShape.WaitCursor)
+        try:
+            self.nav.enable_random_folders()
+        finally:
+            self.unsetCursor()
+        self.canvas.flash(tr("Cartelle casuali: immagini in ordine dentro ogni cartella"))
+        self._update_info()
 
     def first(self):
         self.nav.first()
@@ -947,6 +980,8 @@ class ViewerWindow(QWidget):
     def apply_options(self):
         from .options import load_style
         self.canvas.style_ = load_style(self.settings)
+        if self.folder_transition:
+            self.canvas.style_["slideshow/transition"] = self.folder_transition
         self.keymap = shortcuts.keymap(self.settings, "viewer")
         if not self.canvas.style_["viewer/controls"]:
             self.bar.hide()
@@ -1113,6 +1148,7 @@ class ViewerWindow(QWidget):
     def set_transition(self, kind):
         self.settings.setValue("slideshow/transition", kind)
         self.canvas.style_["slideshow/transition"] = kind
+        self.folder_transition = kind
         if kind != "kenburns":
             self.canvas.kb = None
         self.canvas.flash(tr("Transizione: {name}", name=transition_name(kind)))
@@ -1331,6 +1367,9 @@ class ViewerWindow(QWidget):
         acts = {
             "next": lambda: self.go(1), "prev": lambda: self.go(-1),
             "next_folder": lambda: self.go_folder(1), "prev_folder": lambda: self.go_folder(-1),
+            "random_folder": lambda: self.random_folder(1),
+            "random_folder_back": lambda: self.random_folder(-1),
+            "random_folders": self.toggle_random_folders,
             "first": self.first, "last": self.last,
             "play": self.toggle_play, "stop": lambda: self.set_playing(False),
             "plus": lambda: self.change_interval(1) if self.slideshow_mode else self.zoom_step(1.25),
@@ -1467,6 +1506,8 @@ class ViewerWindow(QWidget):
         self._act(m, "prev", tr("Precedente"))
         self._act(m, "next_folder")
         self._act(m, "prev_folder")
+        self._act(m, "random_folder")
+        self._act(m, "random_folder_back")
         m.addSeparator()
 
         sm = m.addMenu(tr("Slideshow"))
@@ -1477,6 +1518,8 @@ class ViewerWindow(QWidget):
         self._act(sm, "pair", tr("Due immagini affiancate"), checkable=True, checked=self.pair)
         self._act(sm, "manga", tr("Modalità manga, da destra a sinistra"), checkable=True,
                   checked=self.manga, enabled=self.pair)
+        self._act(sm, "random_folders", tr("Cartelle casuali"), checkable=True,
+                  checked=self.nav.shuffle_folders)
         tm = sm.addMenu(tr("Transizione"))
         g = QActionGroup(tm)
         cur_t = self._st("slideshow/transition", "fade")
@@ -1596,7 +1639,24 @@ class ViewerWindow(QWidget):
             self._act(m, "close", tr("Chiudi"))
         m.exec(pos)
 
+    def _save_folder_prefs(self):
+        """Ricorda le impostazioni dello slideshow per la cartella da cui è partito."""
+        key = getattr(self.nav, "prefs_key", None)
+        if not key or not self.started_as_slideshow or self.screensaver:
+            return
+        from . import folderprefs
+        try:
+            folderprefs.save(self.settings, key, dict(
+                interval=self.interval, random=self.nav.shuffle, loop=self.nav.loop,
+                random_folders=self.nav.shuffle_folders,
+                subfolders=getattr(self.nav, "prefs_sub", False), pair=self.pair, manga=self.manga,
+                sort=self.nav.sort, reverse=self.nav.reverse,
+                transition=self._st("slideshow/transition", "fade")))
+        except Exception:  # noqa: BLE001 - impostazioni non scrivibili: pazienza
+            pass
+
     def closeEvent(self, e):
+        self._save_folder_prefs()
         self.timer.stop()
         self._stop_movie()
         if self.music is not None:

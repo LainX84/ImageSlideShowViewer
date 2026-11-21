@@ -15,6 +15,12 @@ fumetti (CBZ, CBR, CB7), valutazioni e raccolte, ritocchi rapidi e operazioni in
 
 ---
 
+## Novità della versione 2.1.1
+
+- **Cartelle casuali**: le cartelle arrivano in ordine casuale mentre le immagini dentro ogni cartella restano ordinate. **PagGiù** salta a una cartella a caso in qualsiasi momento e **PagSu** torna a quella di prima; **C** accende e spegne la modalità durante la visione (spegnendola le cartelle tornano nell'ordine normale, a partire da quella mostrata). C'è anche la casella **Cartelle casuali** nella barra dello slideshow, e 🔀 nella riga delle informazioni indica quando è attiva.
+- **Menu contestuale di Esplora risorse**: **Avvia slideshow** su una cartella ora riparte con le **impostazioni usate l'ultima volta su quella cartella** (intervallo, ordinamento, casuale, cartelle casuali, ripeti, sottocartelle, 2 affiancate, manga, transizione). Si può disattivare, e si possono dimenticare le cartelle ricordate, in *Opzioni → Slideshow → Altro*.
+- **Tasti**: PagGiù / PagSu non cambiano più immagine (restano → ←, Backspace e la rotellina); ora servono per le cartelle casuali.
+
 ## Novità della versione 2.1
 
 - **Decodifica multithread**: AVIF, HEIC e JPEG XL usano tutti i core, e più immagini vengono decodificate in parallelo.
@@ -44,7 +50,7 @@ fumetti (CBZ, CBR, CB7), valutazioni e raccolte, ritocchi rapidi e operazioni in
 
 - **Browser** con albero delle cartelle e griglia di miniature (in cache su disco), ordinamento naturale per nome, data o dimensione, filtro per valutazione / etichetta / Preferiti / tipo, pannello anteprima.
 - **Visualizzatore** con adatta alla finestra, alla larghezza, all'altezza o riempi lo schermo, zoom, rotazione automatica secondo l'EXIF, rotazione e specchio manuali, lente, istogramma, contagocce, **GIF e WebP animate** e **video**.
-- **Slideshow** con intervallo, ordine casuale, ripetizione, sottocartelle e transizioni; **↓ / ↑ saltano alla cartella successiva / precedente** mentre scorre.
+- **Slideshow** con intervallo, ordine casuale, **cartelle casuali** (immagini in ordine), ripetizione, sottocartelle e transizioni; **↓ / ↑ saltano alla cartella successiva / precedente** mentre scorre, **PagGiù / PagSu a una cartella a caso**.
 - **Fumetti**: archivi CBZ/ZIP, CBR/RAR e CB7/7Z mostrati come cartelle con la copertina, **2 pagine affiancate**, **modalità manga**, lettura verticale continua.
 - **Valutazioni, etichette, Preferiti e raccolte**, ricerca, duplicati, calendario e mappa.
 - **Rinomina in blocco** basata su un elenco di operazioni, **conversione in blocco** (JPEG, PNG, WebP, AVIF, HEIC, JPEG XL, TIFF, BMP, GIF), **copia / sposta / elimina** con annullamento.
@@ -103,8 +109,8 @@ Il workflow `.github/workflows/build.yml` compila il programma per **Windows x64
 - con un **tag** che inizia per `v` li pubblica anche come **Release**:
 
 ```
-git tag v2.1.0
-git push origin v2.1.0
+git tag v2.1.1
+git push origin v2.1.1
 ```
 
 ## Menu contestuale di Esplora risorse
@@ -118,6 +124,7 @@ git push origin v2.1.0
 | Un'immagine (anche HEIC, AVIF, JXL, RAW) o un video | Avvia slideshow, Rinomina in blocco, Converti formato |
 
 - Con più elementi selezionati si apre una sola finestra con tutti (per esempio un unico slideshow su tutte le cartelle selezionate, una dopo l'altra).
+- **Avvia slideshow** su una sola cartella (o archivio) usa le impostazioni usate l'ultima volta su quella cartella: intervallo, ordinamento, casuale, cartelle casuali, ripeti, sottocartelle, 2 affiancate, manga e transizione. Una cartella mai vista usa quelle della barra dello slideshow del browser. Le modifiche fatte durante lo slideshow (intervallo, transizione, D, M…) si salvano alla chiusura, come quelle di uno slideshow avviato dal browser su quella cartella. Si può disattivare, e si possono dimenticare le cartelle ricordate, in *Opzioni → Slideshow → Altro*.
 - Le voci vengono scritte solo per l'utente corrente (`HKEY_CURRENT_USER\Software\Classes`): non servono permessi di amministratore e togliendo la spunta dalla stessa voce di menu spariscono del tutto.
 - Su Windows 11 il sottomenu è sotto **"Mostra altre opzioni"** (oppure Maiusc+F10).
 - Se sposti il programma o passi dal `.pyw` all'`.exe`, le voci vengono aggiornate alla successiva apertura del programma. Anche il cambio di lingua le aggiorna.
@@ -174,12 +181,13 @@ Tutti i tasti si possono cambiare (vedi *Tasti di scelta rapida*).
 
 ## Visualizzatore e slideshow
 
-Le opzioni dello slideshow sono nella barra del browser: **Intervallo**, **Casuale**, **Ripeti**, **Includi sottocartelle**, **2 affiancate** e **Manga**.
+Le opzioni dello slideshow sono nella barra del browser: **Intervallo**, **Casuale**, **Cartelle casuali**, **Ripeti**, **Includi sottocartelle**, **2 affiancate** e **Manga**.
 
 - Con **una cartella selezionata** lo slideshow parte da quella e prosegue con tutte le altre cartelle della vista; con **più cartelle selezionate** mostra solo quelle, una dopo l'altra.
 - Con **più immagini selezionate** mostra solo quelle; con **una sola** parte da quella. In una raccolta, in una ricerca o con un filtro attivo mostra gli elementi della vista.
 - ↓/↑ portano sempre alla cartella successiva/precedente rispetto a quella che stai guardando e **girano in tondo** (dall'ultima si torna alla prima). Senza sottocartelle il salto va alla cartella vicina sul disco che contiene immagini, restando dentro la cartella di primo livello (per esempio `D:\Foto`) o la cartella Immagini.
 - Con **Includi sottocartelle** lo slideshow percorre l'albero intero; con *Casuale* mescola sia le cartelle sia le foto.
+- Con **Cartelle casuali** le cartelle arrivano in ordine casuale ma le immagini dentro ogni cartella restano ordinate; a fine cartella lo slideshow passa a un'altra cartella a caso. Con una sola cartella si pesca anche tra quelle vicine (della stessa cartella superiore). **PagGiù** salta a una cartella a caso in qualsiasi momento, anche senza l'opzione, e **PagSu** torna a quella di prima; **C** la accende e la spegne durante la visione (anche da *Slideshow → Cartelle casuali* nel menu del tasto destro): spegnendola le cartelle tornano nel loro ordine normale e lo slideshow prosegue dalla cartella mostrata a quella che la segue. Mentre è attiva, la riga delle informazioni mostra 🔀 cartelle casuali.
 
 **Adatta.** Il tasto **W** passa da *adatta alla finestra* ad *adatta alla larghezza* (le pagine lunghe partono dall'alto, la rotellina le scorre e poi passa alla successiva), *adatta all'altezza* e *riempi lo schermo*. **Z** alterna adatta / 100%; Ctrl+rotellina fa lo zoom e trascinando ci si sposta.
 
@@ -197,8 +205,10 @@ Le opzioni dello slideshow sono nella barra del browser: **Intervallo**, **Casua
 
 | Tasto | Azione |
 |---|---|
-| → ← , PagGiù/PagSu, rotellina | Immagine successiva / precedente |
+| → ← , rotellina | Immagine successiva / precedente |
 | **↓ ↑** , Ctrl+→ / Ctrl+← | **Cartella successiva / precedente** |
+| **PagGiù / PagSu** | **Cartella casuale** / torna a quella di prima (immagini in ordine) |
+| **C** | Cartelle casuali sì / no: spegnendola le cartelle tornano nell'ordine normale, a partire da quella mostrata |
 | Spazio / P | Avvia o ferma lo slideshow |
 | S | Ferma lo slideshow |
 | + / − | Intervallo più lungo / più corto (nel visualizzatore: zoom) |
@@ -443,6 +453,7 @@ isv/rename.py                motore della rinomina (senza Qt, provabile da solo)
 isv/fileops.py               appunti, apri con, sfondo, stampa, proprietà, rinomina
 isv/imageinfo.py             informazioni immagine ed EXIF
 isv/shell.py                 menu contestuale di Esplora risorse (registro)
+isv/folderprefs.py           impostazioni dello slideshow ricordate per cartella
 isv/single.py                riunisce in una finestra i file selezionati in Esplora risorse
 isv/options.py               finestra Opzioni
 isv/about.py, theme.py       finestra Informazioni, tema chiaro / scuro

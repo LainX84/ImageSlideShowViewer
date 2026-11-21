@@ -17,10 +17,13 @@ N = QKeySequence.SequenceFormat.NativeText
 
 # (id, testo, tasti predefiniti) – i testi passano da tr() quando si mostrano
 VIEWER = [
-    ("next", "Immagine successiva", ["Right", "PgDown"]),
-    ("prev", "Immagine precedente", ["Left", "PgUp", "Backspace"]),
+    ("next", "Immagine successiva", ["Right"]),
+    ("prev", "Immagine precedente", ["Left", "Backspace"]),
     ("next_folder", "Cartella successiva", ["Down", "Ctrl+Right", "Ctrl+PgDown"]),
     ("prev_folder", "Cartella precedente", ["Up", "Ctrl+Left", "Ctrl+PgUp"]),
+    ("random_folder", "Cartella casuale (immagini in ordine)", ["PgDown"]),
+    ("random_folder_back", "Cartella casuale precedente", ["PgUp"]),
+    ("random_folders", "Cartelle casuali sì / no (ferma e torna all'ordine normale)", ["C"]),
     ("first", "Prima immagine della cartella", ["Home"]),
     ("last", "Ultima immagine della cartella", ["End"]),
     ("play", "Avvia / ferma lo slideshow", ["Space", "P", "Media Play", "Toggle Media Play/Pause"]),

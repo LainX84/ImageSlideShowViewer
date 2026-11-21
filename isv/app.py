@@ -93,9 +93,10 @@ class App:
             w.move(sc.geometry().topLeft())
             w.resize(sc.geometry().size() * 0.8)
 
-    def open_viewer(self, nav, slideshow=False, screensaver=False):
+    def open_viewer(self, nav, slideshow=False, screensaver=False, prefs=None):
         from .viewer import ViewerWindow
-        v = ViewerWindow(nav, self.loader, self.settings, slideshow=slideshow, screensaver=screensaver)
+        v = ViewerWindow(nav, self.loader, self.settings, slideshow=slideshow, screensaver=screensaver,
+                         prefs=prefs)
         v.to_browser.connect(self.show_browser)
         v.closed.connect(lambda p, v=v: self._viewer_closed(v, p))
         v.files_changed.connect(self._files_changed)
@@ -201,19 +202,26 @@ class App:
 
     def slideshow_from_paths(self, paths):
         """Slideshow avviato da Esplora risorse su una o più cartelle / archivi / immagini."""
+        from . import folderprefs
         from .navigator import Navigator
         s = self.settings
-        opts = dict(shuffle=s.value("slideshow/random", False, type=bool),
-                    loop=s.value("slideshow/loop", True, type=bool),
-                    sort=s.value("browser/sort", "name"),
-                    reverse=s.value("browser/sort_reverse", False, type=bool))
-        sub = s.value("slideshow/subfolders", False, type=bool)
         from .utils import natural_key
         # da Esplora risorse i percorsi arrivano in ordine sparso
         paths = sorted((os.path.abspath(p) for p in paths if os.path.exists(p)),
                        key=lambda p: natural_key(p))
         folders = [p for p in paths if os.path.isdir(p) or is_archive(p)]
         images = [p for p in paths if os.path.isfile(p) and is_image(p)]
+        # Una sola cartella (o archivio): si riparte con le impostazioni usate l'ultima volta
+        # su quella cartella; altrimenti valgono quelle generali della barra dello slideshow.
+        key = folders[0] if len(folders) == 1 and not images else None
+        prefs = folderprefs.load(s, key) or {}
+        opts = dict(shuffle=prefs.get("random", s.value("slideshow/random", False, type=bool)),
+                    loop=prefs.get("loop", s.value("slideshow/loop", True, type=bool)),
+                    sort=prefs.get("sort", s.value("browser/sort", "name")),
+                    reverse=prefs.get("reverse", s.value("browser/sort_reverse", False, type=bool)),
+                    shuffle_folders=prefs.get("random_folders",
+                                              s.value("slideshow/random_folders", False, type=bool)))
+        sub = prefs.get("subfolders", s.value("slideshow/subfolders", False, type=bool))
         QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
         try:
             if folders:
@@ -230,7 +238,8 @@ class App:
             from PySide6.QtWidgets import QMessageBox
             QMessageBox.information(None, APP_NAME, i18n.tr("Nessuna immagine trovata."))
             return False
-        self.open_viewer(nav, slideshow=True)
+        nav.prefs_key, nav.prefs_sub = key, sub
+        self.open_viewer(nav, slideshow=True, prefs=prefs)
         return True
 
     def _viewer_closed(self, v, path):

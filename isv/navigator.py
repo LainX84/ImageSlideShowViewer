@@ -15,16 +15,22 @@ class Navigator:
       l'albero di partenza.
     - include_sub=False: si scorre solo la cartella corrente; il salto cartella
       va alla cartella successiva/precedente sul disco (come ACDSee).
+    - shuffle_folders=True ("cartelle casuali"): le cartelle si percorrono in ordine
+      casuale, ma le immagini di ogni cartella restano ordinate. Con una sola cartella
+      si pescano anche le cartelle vicine (quelle della cartella che la contiene).
     """
 
     def __init__(self, folder, *, images=None, start=None, include_sub=False,
                  shuffle=False, loop=False, sort="name", reverse=False, folders=None,
-                 start_folder=None):
+                 start_folder=None, shuffle_folders=False):
         """folders: elenco esplicito di cartelle da percorrere (cartelle selezionate)."""
         self.root = folder
         self.explicit_start = start is not None    # aperto su un'immagine precisa (niente "riprendi")
         self.include_sub = (include_sub or folders is not None) and images is None
-        self.shuffle = shuffle
+        self.shuffle = shuffle and not shuffle_folders
+        self.shuffle_folders = False
+        self.walk_folders = False      # a fine cartella passa alla successiva (dopo le cartelle casuali)
+        self._ordered = None           # (cartelle in ordine, expandable) prima delle cartelle casuali
         self.loop = loop
         self.sort = sort
         self.reverse = reverse
@@ -66,11 +72,18 @@ class Navigator:
         else:
             self.images = self._load(self.folders[self.fi]) if self.folders else []
         self.ii = 0
-        if start and not shuffle:
+        if start and not self.shuffle:
             for i, p in enumerate(self.images):
                 if samepath(p, start):
                     self.ii = i
                     break
+        if shuffle_folders and not self.custom:
+            # Si parte dalla cartella scelta (o da quella con l'immagine di partenza);
+            # con più cartelle e nessun punto di partenza anche la prima è a caso.
+            # Con un elenco di immagini (ricerca, filtro, selezione) resta tutto com'è:
+            # PagGiù / PagSu passano comunque alle cartelle casuali.
+            self.enable_random_folders(
+                keep_current=bool(start or start_folder) or len(self.folders) <= 1)
 
     # ------------------------------------------------------------------ info
     def _load(self, folder):
@@ -114,7 +127,7 @@ class Navigator:
         if 0 <= n < len(self.images):
             self.ii = n
             return True
-        if self.include_sub:
+        if self.include_sub or self.shuffle_folders or self.walk_folders:
             return self._move_folder(d, land_end=d < 0)
         if self.loop and len(self.images) > 1:
             self.ii = n % len(self.images)
@@ -127,6 +140,86 @@ class Navigator:
         e viceversa (anche senza "Ripeti", che vale per lo scorrimento automatico)."""
         self.folder_changed = False
         return self._move_folder(d, land_end=False, wrap=True)
+
+    # ------------------------------------------------------ cartelle casuali
+    def _folder_pool(self, cur):
+        """Cartelle con immagini tra cui pescare a caso."""
+        if len(self.folders) > 1:
+            return list(self.folders)
+        # una sola cartella: anche le sorelle (e le loro sottocartelle), senza però
+        # risalire oltre il limite del salto cartella (es. D:\Foto o la cartella Immagini)
+        from .utils import is_inside
+        root = cur
+        parent = parent_of(cur)
+        if parent and not samepath(parent, cur) and self.boundary \
+                and is_inside(parent, self.boundary):
+            root = parent
+        pool = collect_image_folders(root)
+        return pool or [cur]
+
+    def enable_random_folders(self, keep_current=True):
+        """Passa alle cartelle in ordine casuale (immagini ordinate dentro ogni cartella).
+        keep_current: la cartella mostrata resta la prima dell'elenco, così ↑ / PagSu
+        tornano indietro lungo le cartelle già viste."""
+        if self.shuffle_folders:
+            return
+        cur_img = self.current()
+        cur = self.folder
+        pool = self._folder_pool(cur)
+        if not any(samepath(f, cur) for f in pool):
+            pool = [cur] + pool
+        self._ordered = (list(pool), self.expandable)
+        others = [f for f in pool if not samepath(f, cur)]
+        random.shuffle(others)
+        was_shuffled = self.shuffle
+        self.shuffle_folders = True
+        self.shuffle = False
+        self.expandable = False
+        if keep_current or not others:
+            self.folders = [cur] + others
+            self.fi = 0
+            if self.custom:
+                self.custom = False
+                self.images = self._load(cur)
+            elif was_shuffled:
+                self.images = self._load(cur)    # di nuovo in ordine
+            else:
+                return
+            self.ii = 0
+            for i, p in enumerate(self.images):
+                if cur_img and samepath(p, cur_img):
+                    self.ii = i
+                    break
+            return
+        # si parte da una cartella a caso
+        self.folders = others + [cur]
+        random.shuffle(self.folders)
+        self.custom = False
+        for fi, f in enumerate(self.folders):
+            imgs = self._load(f)
+            if imgs:
+                self.fi, self.images, self.ii = fi, imgs, 0
+                return
+
+    def disable_random_folders(self):
+        """Torna alle cartelle in ordine, ripartendo da quella mostrata: ↓ / PagGiù e la
+        fine della cartella proseguono con la cartella che la segue nell'ordine normale."""
+        if not self.shuffle_folders:
+            return
+        self.shuffle_folders = False
+        cur = self.folder
+        if self._ordered:
+            folders, self.expandable = self._ordered
+        else:
+            folders = list(self.folders)
+        self._ordered = None
+        fi = next((i for i, f in enumerate(folders) if samepath(f, cur)), None)
+        if fi is None:
+            folders.insert(0, cur)
+            fi = 0
+        self.folders, self.fi = folders, fi
+        # lo slideshow stava già girando tra le cartelle: continua a farlo, in ordine
+        self.walk_folders = len(folders) > 1
 
     def first(self):
         if self.images:

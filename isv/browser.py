@@ -335,6 +335,11 @@ class BrowserWindow(QMainWindow):
         self.sp_interval.valueChanged.connect(lambda v: s.setValue("slideshow/interval", v))
         st.addWidget(self.sp_interval)
         self.ck_random = QCheckBox(tr("Casuale"))
+        self.ck_random.setToolTip(tr("Immagini in ordine casuale"))
+        self.ck_rfolders = QCheckBox(tr("Cartelle casuali"))
+        self.ck_rfolders.setToolTip(tr("Cartelle in ordine casuale, immagini in ordine dentro ogni "
+                                       "cartella. Nello slideshow PagGiù salta a una cartella a caso "
+                                       "e PagSu torna a quella di prima."))
         self.ck_loop = QCheckBox(tr("Ripeti"))
         self.ck_sub = QCheckBox(tr("Includi sottocartelle"))
         self.ck_pair = QCheckBox(tr("2 affiancate"))
@@ -345,13 +350,19 @@ class BrowserWindow(QMainWindow):
         self.ck_manga.setToolTip(tr("Con 2 affiancate: lettura da destra a sinistra, la 1 a destra e la 2 "
                                     "a sinistra, poi 3 a destra e 4 a sinistra… "
                                     "(nello slideshow anche con il tasto M)"))
-        for ck, key, default in ((self.ck_random, "random", False), (self.ck_loop, "loop", True),
+        for ck, key, default in ((self.ck_random, "random", False),
+                                 (self.ck_rfolders, "random_folders", False), (self.ck_loop, "loop", True),
                                  (self.ck_sub, "subfolders", False), (self.ck_pair, "pair", False),
                                  (self.ck_manga, "manga", False)):
             ck.setChecked(s.value(f"slideshow/{key}", default, type=bool))
             ck.toggled.connect(lambda v, k=key: s.setValue(f"slideshow/{k}", v))
             st.addWidget(QLabel(" "))
             st.addWidget(ck)
+        if self.ck_random.isChecked() and self.ck_rfolders.isChecked():
+            self.ck_random.setChecked(False)
+        # o immagini a caso o cartelle a caso (con le immagini in ordine)
+        self.ck_random.toggled.connect(lambda v: v and self.ck_rfolders.setChecked(False))
+        self.ck_rfolders.toggled.connect(lambda v: v and self.ck_random.setChecked(False))
         self.ck_manga.setEnabled(self.ck_pair.isChecked())
         self.ck_pair.toggled.connect(self.ck_manga.setEnabled)
         st.addSeparator()
@@ -1111,7 +1122,8 @@ class BrowserWindow(QMainWindow):
         sel = self.selected_paths()
         sel_dirs = self.selected_folders()
         sub = self.ck_sub.isChecked()
-        opts = dict(shuffle=self.ck_random.isChecked(), loop=self.ck_loop.isChecked(), sort=k, reverse=r)
+        opts = dict(shuffle=self.ck_random.isChecked(), loop=self.ck_loop.isChecked(), sort=k, reverse=r,
+                    shuffle_folders=self.ck_rfolders.isChecked())
         QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
         try:
             if self.virtual is not None or (self.filter != "all" and not sel_dirs):
@@ -1141,6 +1153,13 @@ class BrowserWindow(QMainWindow):
         if nav is None or nav.current() is None:
             QMessageBox.information(self, tr("Slideshow"), tr("Nessuna immagine trovata."))
             return
+        # cartella a cui legare le impostazioni usate (riprese poi dal menu di Esplora risorse)
+        if self.virtual is None and self.filter == "all" and self.folder:
+            if len(sel_dirs) == 1 and len(sel) <= 1:
+                nav.prefs_key = sel_dirs[0]
+            elif not sel_dirs and len(sel) <= 1:
+                nav.prefs_key = self.folder
+            nav.prefs_sub = sub
         self.app.open_viewer(nav, slideshow=True)
 
     def dual_slideshow(self):

@@ -15,6 +15,12 @@ ratings and collections, quick edits and batch operations.<br>
 
 ---
 
+## What's new in version 2.1.1
+
+- **Random folders**: the folders come in random order while the images inside each folder stay sorted. **PgDn** jumps to a random folder at any time and **PgUp** goes back to the previous one; **C** turns the mode on and off while viewing (turning it off puts the folders back in normal order, starting from the one on screen). There is also a **Random folders** checkbox in the slideshow bar, and 🔀 in the info line shows when it is on.
+- **Explorer context menu**: **Start slideshow** on a folder now starts with the **settings last used on that folder** (interval, sort order, random, random folders, repeat, subfolders, 2 side by side, manga, transition). It can be turned off, and the remembered folders cleared, in *Options → Slideshow → Other*.
+- **Keys**: PgDn / PgUp no longer change image (→ ←, Backspace and the wheel still do); they are now used for random folders.
+
 ## What's new in version 2.1
 
 - **Multithreaded decoding**: AVIF, HEIC and JPEG XL use all cores, and several images are decoded in parallel.
@@ -44,7 +50,7 @@ ratings and collections, quick edits and batch operations.<br>
 
 - **Browser** with folder tree and thumbnail grid (cached on disk), natural sorting by name, date or size, filter by rating / label / Favourites / type, preview pane.
 - **Viewer** with fit to window, width or height, fill the screen, zoom, automatic EXIF rotation, manual rotate and flip, magnifier, histogram, eyedropper, **animated GIF and WebP** and **video**.
-- **Slideshow** with interval, random order, repeat, subfolders and transitions; **↓ / ↑ jump to the next / previous folder** while it runs.
+- **Slideshow** with interval, random order, **random folders** (images in order), repeat, subfolders and transitions; **↓ / ↑ jump to the next / previous folder** while it runs, **PgDn / PgUp to a random one**.
 - **Comics**: CBZ/ZIP, CBR/RAR and CB7/7Z archives shown as folders with their cover, **2 pages side by side**, **manga mode**, continuous vertical reading.
 - **Ratings, labels, Favourites and collections**, search, duplicates, calendar and map.
 - **Batch rename** built from a list of operations, **batch conversion** (JPEG, PNG, WebP, AVIF, HEIC, JPEG XL, TIFF, BMP, GIF), **copy / move / delete** with undo.
@@ -103,8 +109,8 @@ The `.github/workflows/build.yml` workflow builds the program for **Windows x64,
 - a **tag** starting with `v` also publishes them as a **Release**:
 
 ```
-git tag v2.1.0
-git push origin v2.1.0
+git tag v2.1.1
+git push origin v2.1.1
 ```
 
 ## Explorer context menu
@@ -118,6 +124,7 @@ git push origin v2.1.0
 | An image (also HEIC, AVIF, JXL, RAW) or a video | Start slideshow, Batch rename, Convert format |
 
 - With several items selected, a single window opens with all of them (for example one slideshow over all the selected folders, one in a row).
+- **Start slideshow** on a single folder (or archive) uses the settings last used on that folder: interval, sort order, shuffle, random folders, repeat, subfolders, 2 side by side, manga and transition. A folder seen for the first time uses the settings of the browser's slideshow bar. Changes made during the slideshow (interval, transition, D, M…) are saved when it closes, and so are those of a slideshow started from the browser on that folder. It can be turned off, and the remembered folders cleared, in *Options → Slideshow → Other*.
 - The entries are written only for the current user (`HKEY_CURRENT_USER\Software\Classes`): no administrator rights are needed, and unticking the same menu item removes them completely.
 - On Windows 11 the submenu is under **"Show more options"** (or Shift+F10).
 - If you move the program or switch from the `.pyw` to the `.exe`, the entries are updated the next time you open the program. Changing the language updates them too.
@@ -174,12 +181,13 @@ All keys can be changed (see *Keyboard shortcuts*).
 
 ## Viewer and slideshow
 
-The slideshow options are in the browser bar: **Interval**, **Random**, **Loop**, **Include subfolders**, **2 side by side** and **Manga**.
+The slideshow options are in the browser bar: **Interval**, **Random**, **Random folders**, **Loop**, **Include subfolders**, **2 side by side** and **Manga**.
 
 - With **one folder selected** the slideshow starts from it and continues with all the other folders in the view; with **several folders selected** it shows only those, one after the other.
 - With **several images selected** it shows only those; with **just one** it starts from it. In a collection, a search or with a filter on, it shows the items in the view.
 - ↓/↑ always go to the next/previous folder from the one you are looking at, and **wrap around** (from the last you go back to the first). Without subfolders the jump goes to the nearest folder on disk that contains images, staying inside the top-level folder (for example `D:\Photos`) or the Pictures folder.
 - With **Include subfolders** the slideshow walks the whole tree; with *Random* it shuffles both folders and photos.
+- With **Random folders** the folders come in random order but the images inside each folder stay sorted; at the end of a folder the slideshow moves on to another random one. With a single folder it also picks from the folders next to it (those in the same parent folder). **PgDn** jumps to a random folder at any time, even without the option, and **PgUp** goes back to the previous one; **C** switches it on and off while viewing (also *Slideshow → Random folders* in the right-click menu): when you turn it off the folders go back to their normal order and the slideshow carries on from the folder on screen to the one after it. While it is on, the info line shows 🔀 random folders.
 
 **Fit.** The **W** key cycles through *fit to window*, *fit to width* (long pages start from the top, the wheel scrolls them and then moves to the next one), *fit to height* and *fill the screen*. **Z** toggles fit / 100%; Ctrl+wheel zooms and dragging pans.
 
@@ -197,8 +205,10 @@ The slideshow options are in the browser bar: **Interval**, **Random**, **Loop**
 
 | Key | Action |
 |---|---|
-| → ← , PgDn/PgUp, wheel | Next / previous image |
+| → ← , wheel | Next / previous image |
 | **↓ ↑** , Ctrl+→ / Ctrl+← | **Next / previous folder** |
+| **PgDn / PgUp** | **Random folder** / back to the previous one (images stay in order) |
+| **C** | Random folders on / off: turning it off puts the folders back in normal order, starting from the one on screen |
 | Space / P | Start or stop the slideshow |
 | S | Stop the slideshow |
 | + / − | Longer / shorter interval (in the viewer: zoom) |
@@ -443,6 +453,7 @@ isv/rename.py                rename engine (no Qt, testable on its own)
 isv/fileops.py               clipboard, open with, wallpaper, print, properties, rename
 isv/imageinfo.py             image info and EXIF
 isv/shell.py                 Explorer context menu (registry)
+isv/folderprefs.py           slideshow settings remembered per folder
 isv/single.py                gathers the files selected in Explorer into one window
 isv/options.py               Options dialog
 isv/about.py, theme.py       About dialog, light / dark theme

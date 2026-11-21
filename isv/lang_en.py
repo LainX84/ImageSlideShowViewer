@@ -747,6 +747,28 @@ EN = {
     'Volume:': 'Volume:',
     'Con 2 affiancate, le pagine doppie (immagini orizzontali) si mostrano da sole': 'With two side by side, double pages (landscape images) are shown on their own',
     "Archivi di fumetti: riprendi dall'ultima pagina letta": 'Comic archives: resume from the last page read',
+    "Ricorda le impostazioni dello slideshow di ogni cartella": "Remember slideshow settings for each folder",
+    "Avviando lo slideshow su una cartella dal menu contestuale di Esplora risorse si "
+    "riparte con intervallo, ordine, casuale, cartelle casuali, ripetizione, sottocartelle, 2 affiancate, "
+    "manga e transizione usati l'ultima volta su quella cartella.":
+        "When a slideshow is started on a folder from the File Explorer context menu, it uses the "
+        "interval, sort order, shuffle, random folders, repeat, subfolders, side by side, manga and transition "
+        "last used on that folder.",
+    "Dimentica tutte": "Forget all",
+    "Cartella casuale (immagini in ordine)": "Random folder (images in order)",
+    "Cartella casuale precedente": "Previous random folder",
+    "Cartelle casuali": "Random folders",
+    "Cartelle casuali disattivate: cartelle di nuovo in ordine": "Random folders off: folders back in order",
+    "Cartelle casuali sì / no (ferma e torna all'ordine normale)": "Random folders on / off (stop and go back to normal order)",
+    "cartelle casuali": "random folders",
+    "Cartelle casuali: immagini in ordine dentro ogni cartella": "Random folders: images in order within each folder",
+    "Immagini in ordine casuale": "Images in random order",
+    "Cartelle in ordine casuale, immagini in ordine dentro ogni "
+    "cartella. Nello slideshow PagGiù salta a una cartella a caso "
+    "e PagSu torna a quella di prima.":
+        "Folders in random order, images in order within each folder. "
+        "In the slideshow PgDn jumps to a random folder and PgUp goes back to the previous one.",
+    "Cartelle ricordate: {n}": "Remembered folders: {n}",
     'Mostra i video nel browser e nello slideshow': 'Show videos in the browser and the slideshow',
     'Altro': 'Other',
     'Schermo dello slideshow:': 'Slideshow screen:',

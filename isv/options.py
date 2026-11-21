@@ -42,6 +42,7 @@ DEFAULTS = {
     "slideshow/screen": "window",      # window | primary | secondary | <nome schermo>
     "slideshow/videos": True,          # video nel browser e nello slideshow
     "comics/resume": True,             # archivi: riprendi dall'ultima pagina letta
+    "slideshow/per_folder": True,      # ricorda le impostazioni dello slideshow per cartella
     "sort/advance": True,
     "screensaver/enabled": False,
     "screensaver/minutes": 10,
@@ -256,6 +257,13 @@ class OptionsDialog(QDialog):
         self.ck_double = QCheckBox(tr("Con 2 affiancate, le pagine doppie (immagini orizzontali) si mostrano da sole"))
         self.ck_resume = QCheckBox(tr("Archivi di fumetti: riprendi dall'ultima pagina letta"))
         self.ck_videos = QCheckBox(tr("Mostra i video nel browser e nello slideshow"))
+        self.ck_per_folder = QCheckBox(tr("Ricorda le impostazioni dello slideshow di ogni cartella"))
+        self.ck_per_folder.setToolTip(tr(
+            "Avviando lo slideshow su una cartella dal menu contestuale di Esplora risorse si "
+            "riparte con intervallo, ordine, casuale, cartelle casuali, ripetizione, sottocartelle, 2 affiancate, "
+            "manga e transizione usati l'ultima volta su quella cartella."))
+        self.bt_forget = QPushButton(tr("Dimentica tutte"))
+        self.bt_forget.clicked.connect(self._forget_folders)
         self.cb_screen = QComboBox()
         from PySide6.QtGui import QGuiApplication
         self._screens = [("window", tr("Quello della finestra del programma")),
@@ -269,6 +277,10 @@ class OptionsDialog(QDialog):
         f3.addRow(self.ck_double)
         f3.addRow(self.ck_resume)
         f3.addRow(self.ck_videos)
+        row = QHBoxLayout()
+        row.addWidget(self.ck_per_folder, 1)
+        row.addWidget(self.bt_forget)
+        f3.addRow(row)
         f3.addRow(tr("Schermo dello slideshow:"), self.cb_screen)
         return self._page(g1, g2, g3)
 
@@ -462,6 +474,8 @@ class OptionsDialog(QDialog):
         self.ck_double.setChecked(s["slideshow/double_pages"])
         self.ck_resume.setChecked(s["comics/resume"])
         self.ck_videos.setChecked(s["slideshow/videos"])
+        self.ck_per_folder.setChecked(s["slideshow/per_folder"])
+        self._update_forget()
         keys = [k for k, _n in self._screens]
         self.cb_screen.setCurrentIndex(keys.index(s["slideshow/screen"]) if s["slideshow/screen"] in keys else 0)
         self.ck_quick.setChecked(s["viewer/quick_delete"])
@@ -558,6 +572,17 @@ class OptionsDialog(QDialog):
         if nvsupport.activated_folder():
             self.lb_nv.setText(tr("Rimosse: smetteranno di essere usate al prossimo avvio."))
 
+    def _update_forget(self):
+        from . import folderprefs
+        n = folderprefs.count(self.settings)
+        self.bt_forget.setEnabled(n > 0)
+        self.bt_forget.setToolTip(tr("Cartelle ricordate: {n}", n=n))
+
+    def _forget_folders(self):
+        from . import folderprefs
+        folderprefs.forget_all(self.settings)
+        self._update_forget()
+
     def _keys(self):
         from .shortcuts import ShortcutsDialog
         self.keys_changed = ShortcutsDialog(self.settings, self).run() or getattr(self, "keys_changed", False)
@@ -582,6 +607,7 @@ class OptionsDialog(QDialog):
         s["slideshow/double_pages"] = self.ck_double.isChecked()
         s["comics/resume"] = self.ck_resume.isChecked()
         s["slideshow/videos"] = self.ck_videos.isChecked()
+        s["slideshow/per_folder"] = self.ck_per_folder.isChecked()
         s["slideshow/screen"] = self._screens[self.cb_screen.currentIndex()][0]
         s["viewer/quick_delete"] = self.ck_quick.isChecked()
         s["viewer/video_sound"] = self.ck_vaudio.isChecked()
